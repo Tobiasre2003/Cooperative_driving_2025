@@ -1,0 +1,8 @@
+prefix=/home/wifibot/merging-bot/devel
+
+Name: ttc
+Description: Description of ttc
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

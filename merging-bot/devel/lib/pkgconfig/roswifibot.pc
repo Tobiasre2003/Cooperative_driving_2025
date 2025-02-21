@@ -1,0 +1,8 @@
+prefix=/home/wifibot/control_vehicles/devel
+
+Name: roswifibot
+Description: Description of roswifibot
+Version: 0.0.0
+Cflags: -I/home/wifibot/control_vehicles/devel/include -I/home/wifibot/control_vehicles/src/roswifibot/include
+Libs: -L${prefix}/lib 
+Requires: message_generation roscpp std_msgs tf

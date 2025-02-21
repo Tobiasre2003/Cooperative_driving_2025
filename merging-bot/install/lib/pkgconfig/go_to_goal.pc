@@ -1,0 +1,8 @@
+prefix=/home/wifibot/merging-bot/install
+
+Name: go_to_goal
+Description: Description of go_to_goal
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

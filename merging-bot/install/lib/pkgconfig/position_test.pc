@@ -1,0 +1,8 @@
+prefix=/home/wifibot/control_vehicles/install
+
+Name: position_test
+Description: Description of position_test
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

@@ -1,0 +1,8 @@
+prefix=/home/wifibot/merging-bot/devel
+
+Name: mapdata
+Description: Description of mapdata
+Version: 0.0.0
+Cflags: -I/home/wifibot/merging-bot/devel/include
+Libs: -L${prefix}/lib 
+Requires: std_msgs rospy message_runtime

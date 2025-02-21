@@ -1,0 +1,8 @@
+prefix=/home/wifibot/merging-bot/install
+
+Name: coordination
+Description: Description of coordination
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
