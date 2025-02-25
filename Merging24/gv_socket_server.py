@@ -26,7 +26,7 @@ MERGING_WINDOW = length_of_wifibot/MAX_SPEED + 3
 MAIN_START_SPEED = 0.3
 RAMP_START_SPEED = 0.3
 
-INTERSECTION_WINDOW = 3 + length_of_wifibot/MAX_SPEED
+INTERSECTION_WINDOW = 6 + length_of_wifibot/MAX_SPEED
 
 class Point:
     def __init__(self, x, y):
@@ -348,7 +348,7 @@ class GulliViewPacketHandler(BaseRequestHandler):
             # print detections
             bot = Bot(det.tag_id, Point(det.x, det.y), det.theta)
             detections.detect_bot(bot)
- 
+
         # if len(packet.detection) < 2 only information for one robot has been sent.
         # This means that if calculations are done the old coordinates for the other robot is used which works but there is a better way to handle this.
         # with the advanced mobility model this should not be a problem since all camera information is sent in the same message.
@@ -494,6 +494,16 @@ def calculation():
     return merge_done
 
 
+def facing_point(bot:Bot, point:Point, tolerance:float):
+    dx = point.x - bot.p.x
+    dy = point.y - bot.p.y
+    ang = math.atan2(dy, dx)
+    angle_diff = abs(ang - bot.theta)
+    if angle_diff > math.pi: angle_diff = 2*math.pi - angle_diff
+    return angle_diff <= tolerance
+    
+
+
 # Algorithm for adjusting speeds of robots in an intersection
 def calculation_intersection():
     # If no detections or only one, do nothing since there is no risk of collision
@@ -507,18 +517,21 @@ def calculation_intersection():
     main = detections.main.bot
     ramp = detections.ramp.bot
 
-    # main_time = None
-    # ramp_time = None
-
+    main_time = None
+    ramp_time = None
+    
     ttc = math.nan
     # check if bots are approaching the intersection by checking that they are angled toward it 
     # and haven't passed the x-coordinate in the center of the intersection
-    if (main.p.x < 2200 and ((main.theta < 0 and main.theta > -math.pi/2) or (main.theta > 0 and main.theta < math.pi/2))):
+    
+    if facing_point(main, INTERSECTION_CENTER, math.pi/4):
         main_distance = distance_in_m_abs(main.p, INTERSECTION_CENTER)
         main_time = main_distance/main.speed
-    if (ramp.p.x < 2200 and ((ramp.theta < 0 and ramp.theta > -math.pi/2) or (ramp.theta > 0 and ramp.theta < math.pi/2))):
+        
+    if facing_point(ramp, INTERSECTION_CENTER, math.pi/4):
         ramp_distance = distance_in_m_abs(ramp.p, INTERSECTION_CENTER)
         ramp_time = ramp_distance/ramp.speed
+ 
 
     # if either main_time or ramp_time is None, there is no risk of collision since either 1 or no one is approaching the intersection
     if not(main_time is None or ramp_time is None):
@@ -533,6 +546,9 @@ def calculation_intersection():
             main.set_speed(main_distance/(main_time + INTERSECTION_WINDOW-time_gap))
             ttc = main_time
     
+
+    print(["intersection: ",detections.is_bot_in_intersection(main),detections.is_bot_in_intersection(ramp)])
+
     # add or remove bots from intersectionQueue, first in queue means priority
     if detections.is_bot_in_intersection(main) and main.id not in detections.intersectionQueue:
         detections.intersectionQueue.append(main.id)
@@ -550,11 +566,11 @@ def calculation_intersection():
     if len(detections.intersectionQueue) < 2:
         pass
     else: 
-        if main.id == detections.intersectionQueue[0]:
+        if main.id == detections.intersectionQueue[0]: 
             ramp.set_speed(0) 
         else:
             main.set_speed(0)
-    ttc = math.nan
+    #ttc = math.nan
 
     #log current timestamp and ttc
     df.loc[len(df)] = [time_s(), ttc, detections.get_main_speed(), detections.get_ramp_speed()]
@@ -578,19 +594,30 @@ if __name__ == "__main__":
     MERGING_END = MERGING_POINT
     ramp_length = distance_in_m_abs(MERGING_START, MERGING_END)
     # Point for intersection
-    INTERSECTION_CENTER = Point(2200, 6800)
-    MAIN_INTERSECTION_START = Point(2200, 9000)
-    RAMP_INTERSECTION_START = Point(2200, 4600)
+    if sys.argv[1] == "intersection": # For running intersection in a figure of eight from "merging-bot/merging2024 project"
+        INTERSECTION_CENTER = Point(2200, 6800) # ändra  
+        MAIN_INTERSECTION_START = Point(2200, 9000) # ändra
+        RAMP_INTERSECTION_START = Point(2200, 4600) # ändra
+    if sys.argv[1] == "intersection_testet": # For running intersection in "merging2025bachelor project"
+        INTERSECTION_CENTER = Point(3628, 3714) # ny
+        MAIN_INTERSECTION_START = Point(3918, 7741) # ny
+        RAMP_INTERSECTION_START = Point(3487, 805) # ny
+
+
+    
 
     # Defina entry radius
     entry_radius_squared = 500**2 
 
+    #entry_radius_squared = 900**2 
+
 
 
     # if argument intersection is passed when running code change where to detect bots.
-    if args.algorithm == 'intersection':
+    if args.algorithm == 'intersection' or args.algorithm == 'intersection_testet':
         main_entry = MAIN_INTERSECTION_START
         ramp_entry = RAMP_INTERSECTION_START
+       
 
         # Pandas dataframe for logging intersection
         df = pd.DataFrame(columns=['time', 'ttc', 'main_speed', 'ramp_speed'])
