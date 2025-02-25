@@ -2,7 +2,7 @@
 
 # Here we will experiment with go to goal
 
-# 103
+# 102
 
 from asyncore import write
 from curses import KEY_PPAGE
@@ -20,8 +20,8 @@ from roswifibot.msg import IR
 
 
 
-SPEED = 0.30
-ERROR_RANGE = 300
+SPEED = 0.3
+ERROR_RANGE = 300 
 
 # Origin point to return to base
 ORIGIN_POINT = [Point(2000, 9000, 0)]
@@ -35,16 +35,13 @@ ORIGIN_POINT = [Point(2000, 9000, 0)]
 # (Old) Merging on-ramp path, right lane
 # RAMP_PATH = [Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1711, 6332, 0), Point(1640, 5200, 0), Point(1180, 4260, 0), Point(1033, 2168, 0)]
 
-#intersection:
-#RAMP_PATH = [Point(3200,7300 , 0), Point(2600, 7264, 0), Point(1600, 5900, 0), Point(1400, 4900, 0),Point(1100, 4500, 0), Point(1100, 3500, 0)]
-
 # Merging on-ramp path, right lane
-# RAMP_PATH = [Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1711, 6332, 0), Point(1640, 5900, 0), Point(1180, 4260, 0), Point(1033, 2168, 0)]
+#RAMP_PATH = [Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1711, 6332, 0), Point(1640, 5900, 0), Point(1180, 4260, 0), Point(1033, 2168, 0)]
 
 # Less points
-RAMP_PATH = [Point(3702, 8547, 0), Point(2400, 7264, 0), Point(1600, 5900, 0), Point(1400, 4900, 0),Point(1100, 4500, 0), Point(1100, 3500, 0)]
-#Point(2502, 7850, 0),
-LOOP_RAMP_PATH = [Point(3320,2800,0), Point(3320, 5600, 0), Point(3320, 6000, 0), Point(2602, 6847, 0), Point(3752, 7237, 0), Point(4002, 8247, 0),Point(4507,8695,0),Point(4243,8495,0),Point(3803,8348,0)]
+RAMP_PATH = [Point(3702, 8547, 0), Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1033, 3000, 0)]
+#Point(2502, 7850, 0),         Point(3320, 3200, 0),
+LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 5600, 0), Point(3320, 6000, 0), Point(3702, 6847, 0), Point(3452, 8247, 0), Point(3702, 8247, 0) ]
 #LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 3500, 0), Point(3320, 4600, 0), Point(3320, 5600, 0), Point(3320, 6600, 0), Point(3702, 8547, 0), Point(2502, 7850, 0), Point(3702, 8547, 0) ]
 
 # Merging main road path, left lane
@@ -55,9 +52,13 @@ MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Poin
 
 LOOP_MAIN_PATH = [Point(3320, 2800, 0),  Point(3320, 5600, 0), Point(3320, 6000, 0), Point(2630, 8100, 0), Point(870, 8361, 0), Point(830, 8361, 0) ]
 
-INTERSECTION_PATH = [Point(1200, 5400, 0), Point(2200, 6800, 0), Point(3200, 8200, 0), 
-                     Point(2200, 9000, 0), Point(1200, 8200, 0), Point(2200, 6800, 0), 
-                     Point(3200, 5400, 0), Point(2200, 4600, 0)]
+INTERSECTION_PATH = [Point(1200, 8200, 0), Point(2200, 6800, 0), Point(3200, 5400, 0),
+                     Point(2200, 4600, 0), Point(1200, 5400, 0), Point(2200, 6800, 0),
+                     Point(3200, 8200, 0), Point(2200, 9000, 0)]
+
+
+INTERSECTION_PATH_1 = [Point(3968,7741,0), Point(3968, 4200,0), Point(3628, 3714,0), Point(1852, 3500,0)]
+INTERSECTION_PATH_2 = [Point(3487,805,0), Point(3590, 2637,0), Point(3578, 3714,0), Point(3471, 6065,0)]
 
 
 PATH = []
@@ -66,6 +67,8 @@ PATHS = {
         'ramp' : RAMP_PATH,
         'main' : MAIN_PATH,
         'intersection' : INTERSECTION_PATH,
+	'intersection_1': INTERSECTION_PATH_1,
+	'intersection_2': INTERSECTION_PATH_2
         }
 
 LOOP_PATHS = {
@@ -73,7 +76,10 @@ LOOP_PATHS = {
         'ramp' : LOOP_RAMP_PATH,
         'main' : LOOP_MAIN_PATH,
         'intersection' : INTERSECTION_PATH,
+	'intersection_1': INTERSECTION_PATH_1,
+	'intersection_2': INTERSECTION_PATH_2	
         }
+
 KP = 1
 KI = 0
 KD = 0
@@ -118,7 +124,7 @@ class GoToGoalNode:
         rospy.Subscriber('gv_positions', GulliViewPosition, self._position_cb)
         rospy.Subscriber('gv_laptop', LaptopSpeed, self._speed_cb)
 
-        rospy.Subscriber("/IR", IR, self._callback)
+        #rospy.Subscriber("/IR", IR, self._callback)
 
         
 
@@ -202,8 +208,8 @@ class GoToGoalNode:
              #max_omega  = self.pid.update(pi, False)
             #Check if the wifibot has already passed a point and in that case go to the other
             # avoids it turning in a circle if sligthly off starting point
-            print("pos Y: ", self.y, ", Dest Y: ", self.dest.y, "i: ", self.i, "len: ", len(PATH))
-            #if(self.y < self.dest.y and self.i < len(PATH) and self.loopi == 0):
+            print("pos Y: ", self.y, ", Dest Y: ", self.dest.y, "pos X: ", self.x, ", Dest X: ", self.dest.x,  "i: ", self.i, "len: ", len(PATH))
+            #if(self.y < self.dest.y and self.i < len(PATH) and self.loopi == 0):    
             #    self.i += 1
             #    self.dest = PATH[self.i]
             #    print("Inside new function")
@@ -231,7 +237,7 @@ class GoToGoalNode:
 
 
 
-
+        '''
         if (self.Left_front_ir_previous_value == data.IR_front_left):
             # rospy.loginfo(rospy.get_caller_id() + " !!! IR SAME VALUE LEFT !!! : %s  --  %s -- %s",  self.Left_back_stale_counter, self.Left_front_ir_previous_value, data.IR_front_left)
             self.Left_back_stale_counter += 1
@@ -243,12 +249,12 @@ class GoToGoalNode:
             self.Right_back_stale_counter += 1
         else :
              self.Right_back_stale_counter = 0
-
+        '''
         #update prev value
         self.Left_front_ir_previous_value = data.IR_front_left
         self.Right_front_ir_previous_value = data.IR_front_right
 
-        if (data.IR_front_left <= 50 or (self.speed >= 0.50 and data.IR_front_left <= 80)):
+        if (data.IR_front_left <= 40 or (self.speed >= 0.50 and data.IR_front_left <= 80)):
             #print("Test")
             #print(self.Left_front_ir_data) 
             if(self.Left_front_ir_data < 1):
@@ -257,7 +263,7 @@ class GoToGoalNode:
                 self.Left_front_ir_data = 0
                 
 
-        if (data.IR_front_right <= 50 or (self.speed >= 0.50 and data.IR_front_left <= 80)):
+        if (data.IR_front_right <= 40 or (self.speed >= 0.50 and data.IR_front_left <= 80)):
             if(self.Right_front_ir_data < 1):
                 self.Right_front_ir_data += 1
             else:

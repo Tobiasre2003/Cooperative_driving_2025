@@ -10,7 +10,7 @@ import time
 import csv
 import rospy
 import sys
-
+import random
 from geometry_msgs.msg import Twist, Point
 from gv_client.msg import GulliViewPosition, LaptopSpeed
 
@@ -43,8 +43,9 @@ RAMP_PATH = [Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1033, 2168, 0)]
 # MAIN_PATH = [Point(480, 8400, 0), Point(480, 7400, 0), Point(500, 6400, 0), Point(480, 5400, 0), Point(450, 4400, 0), Point(500, 3400, 0), Point(500, 2400, 0), Point(480, 2100, 0)]
 
 # Merging main road path, right lane
-MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Point(900, 5400, 0), Point(900, 4400, 0), Point(900, 3400, 0), Point(900, 2400, 0), Point(900, 2100, 0)]
+MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Point(900, 5400, 0), Point(900, 4400, 0), Point(900, 3400, 0), Point(900, 2400, 0), Point(933, 2208, 0), Point(900, 2100, 0)]
 
+END_POINTS = [Point(900, 2500, 0), Point(900, 2100, 0)]
 
 PATH = []
 PATHS = {
@@ -57,14 +58,30 @@ KP = 1
 KI = 0
 KD = 0
 
-#Counters for keeping track of ir sensor data
-proximity_counter_ir_front_left = 0
+IGNORE_TIMER = 50
+
 
 
 WINDUP_GUARD = 100.0
 
 
 class GoToGoalNode:
+
+    Left_front_ir_data = 0
+    Right_front_ir_data = 0
+    Left_back_ir_data = 0
+    Right_back_ir_data = 0
+
+    Left_front_ir_previous_value = 0
+    Right_front_ir_previous_value = 0
+
+    Left_back_stale_counter = 0
+    Right_back_stale_counter = 0
+
+
+
+    isSleeping = False
+    sleepTimer = 0
 
     def __init__(self):
         rospy.init_node('reachGoal', anonymous=True)
@@ -73,7 +90,23 @@ class GoToGoalNode:
         rospy.Subscriber('gv_positions', GulliViewPosition, self._position_cb)
         rospy.Subscriber('gv_laptop', LaptopSpeed, self._speed_cb)
 
-        rospy.Subscriber("/IR", IR, callback)
+        rospy.Subscriber("/IR", IR, self._callback)
+
+        
+
+        # Keeping track of ir sensor data
+        self.Left_front_ir_data = 0
+        self.Right_front_ir_data = 0
+        self.Left_back_ir_data = 0
+        self.Right_back_ir_data = 0
+
+        self.Left_front_ir_previous_value = 0
+        self.Right_front_ir_previous_value = 0
+
+        self.Left_back_stale_counter = 0
+        self.Right_back_stale_counter = 0
+
+        self.sleepTimer = 0
 
 
         self.publisher = rospy.Publisher('cmd_vel', Twist, queue_size=1)
@@ -123,11 +156,12 @@ class GoToGoalNode:
             print("REACHED POINT", self.i)
             if self.i < len(PATH):
                 self.dest = PATH[self.i]
+            
         else:
              #max_omega  = self.pid.update(pi, False)
             #Check if the wifibot has already passed a point and in that case go to the other
-            # avoids it turning in a circle if sligthly of starting point
-            if(self.y < self.dest.y):
+            # avoids it turning in a circle if sligthly off starting point
+            if(self.y < self.dest.y & self.i < len(PATH)):
                 self.i += 1
                 self.dest = PATH[self.i]
                 print("Inside new function")
@@ -140,6 +174,67 @@ class GoToGoalNode:
                 self.omega = true_omega#/max_omega
                 #print("OMEGA:", self.omega) # DEBUG
         print("POS OUT") # DEBUG
+
+
+    def _callback(self, data):
+        # print("aaaa")
+        # print(test) 
+        # rospy.loginfo(rospy.get_caller_id() + " IR : %s  --  %s", data.IR_front_left, data.IR_front_right)
+
+        print(self.Left_front_ir_data) 
+
+
+        # ------------------------ IR LOGIC  ------------------------
+
+        if (self.Left_front_ir_previous_value == data.IR_front_left):
+            # rospy.loginfo(rospy.get_caller_id() + " !!! IR SAME VALUE LEFT !!! : %s  --  %s -- %s",  self.Left_back_stale_counter, self.Left_front_ir_previous_value, data.IR_front_left)
+            self.Left_back_stale_counter += 1
+        else :
+            self.Left_back_stale_counter = 0
+        
+        if (self.Right_front_ir_previous_value == data.IR_front_right):
+            # rospy.loginfo(rospy.get_caller_id() + " !!! IR SAME VALUE RIGHT !!! : %s  --  %s --  %s", self.Right_back_stale_counter, self.Right_front_ir_previous_value, data.IR_front_right)
+            self.Right_back_stale_counter += 1
+        else :
+             self.Right_back_stale_counter = 0
+
+        #update prev value
+        self.Left_front_ir_previous_value = data.IR_front_left
+        self.Right_front_ir_previous_value = data.IR_front_right
+        print("Stale left")
+
+        print(self.Left_back_stale_counter)
+        print("Stale right")
+
+        print(self.Right_back_stale_counter)
+
+
+        if (data.IR_front_left <= 50):
+            print("Test")
+            print(self.Left_front_ir_data) 
+            if(self.Left_front_ir_data < 2):
+                self.Left_front_ir_data += 1
+            else:
+                self.Left_front_ir_data = 0
+                
+
+        if (data.IR_front_right <= 50):
+            if(self.Right_front_ir_data < 2):
+                self.Right_front_ir_data += 1
+            else:
+                self.Right_front_ir_data = 0
+
+        if ((self.Right_front_ir_data >= 2 or self.Left_front_ir_data >= 2) and (self.Right_back_stale_counter < 3 or self.Left_back_stale_counter < 3)):
+            self.Right_front_ir_data = 0
+            self.Left_front_ir_data = 0
+            self.speed = 0
+            node.sleepTimer = IGNORE_TIMER
+            rospy.loginfo(rospy.get_caller_id() + " -- !!! SLEEP !!!-- ")
+        
+        # ------------------------ IR LOGIC  ------------------------
+        # - move to start point, slow down before reaching it, stop when reached, wait for other robot, begin test again
+
+                
 
     def move(self, speed, omega):
         twist = Twist()
@@ -167,15 +262,14 @@ class GoToGoalNode:
 
     def shutdown(self):
         print(self.end_angles[0])
-        f = open('~/control_vehicles2/test/test_data', 'w')
-        writer = csv.writer(f)
-        writer.writerow(self.end_angles)
+        # f = open('~/control_vehicles2/test/test_data', 'w')
+        # writer = csv.writer(f)
+        # writer.writerow(self.end_angles)
         f.close
 
 
-def callback(data):
-    # print("aaaa")
-    rospy.loginfo(rospy.get_caller_id() + " IR : %s  --  %s", data.IR_front_left, data.IR_front_right)
+
+
 
     # maxspeed = 0.4
     # if (maxspeed > 0.5):
@@ -258,13 +352,20 @@ class PID:
 
 
 if __name__ == '__main__': 
+    set_delay = True
     PATH = PATHS[sys.argv[1]]
     node = GoToGoalNode()
     rospy.on_shutdown(node.shutdown)
     while not rospy.is_shutdown() and node.i < len(PATH):
         if node.omega == 0:
             print("=== LOST CONTACT WITH GULLIVIEW! ===")
+        if (set_delay):
+            delay_duration = random.uniform(1.0, 3.0) #Introduce time delay
+            print("Introducing delay of:",delay_duration, "seconds")
+            set_delay = False
+            time.sleep(delay_duration)
+
         node.move(node.speed, node.omega)
         node.omega = 0 # safety if loses contact with GulliView
         node.rate.sleep()
-    print("DONE :D")
+        print("DONE :D")

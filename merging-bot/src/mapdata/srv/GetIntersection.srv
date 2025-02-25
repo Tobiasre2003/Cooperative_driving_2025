@@ -1,6 +1,0 @@
----
-# For our purposes a 4-way intersection is enough
-RoadSection north
-RoadSection west
-RoadSection south
-RoadSection east
