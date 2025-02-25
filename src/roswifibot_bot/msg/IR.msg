@@ -1,4 +1,0 @@
-float64 IR_front_left
-float64 IR_back_left
-float64 IR_front_right
-float64 IR_back_right
