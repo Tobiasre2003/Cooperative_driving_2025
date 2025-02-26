@@ -16,6 +16,14 @@ class Point:
         return f'(Id: {self.id}, X: {self.x}, Y: {self.y}, Theta: {self.theta})'
 
 
+class Bot:
+    def __init__(self, id):
+        self.id = id
+        self.left_speed = 0
+        self.right_speed = 0
+        self.point = None
+
+
 class Receiver:
     def __init__(self):
         rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
@@ -27,13 +35,19 @@ class Receiver:
         y = position_msg.y
         theta = position_msg.theta
         self.p = Point(id, x, y, theta)
-        print(self.p)
+        bots[id].point = self.p
         
     def status(self, status_msg):
-        print(status_msg.speed_front_left)
-        print(status_msg.speed_front_right)
-
+        bots[my_id].left_speed = status_msg.speed_front_left
+        bots[my_id].left_speed = status_msg.speed_front_right
+        
+        
+        
 if __name__ == '__main__': 
+    
+    my_id = 4
+    bots = {4:Bot(4), 5:Bot(5)}
+    
     rospy.init_node('test', anonymous=True)
     rospy.loginfo("Starting test node")
     
