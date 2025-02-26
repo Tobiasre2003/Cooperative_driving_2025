@@ -24,6 +24,9 @@ class Bot:
         self.right_speed = 0
         self.absolute_speed = 0
         self.point = None
+        
+    def __repr__(self):
+        return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
 
 class Receiver:
