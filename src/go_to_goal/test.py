@@ -3,6 +3,7 @@
 import rospy
 from gv_client.msg import GulliViewPosition
 from roswifibot.msg import Status
+import sys
 
 
 class Point:
@@ -36,10 +37,12 @@ class Receiver:
         y = position_msg.y
         theta = position_msg.theta
         self.p = Point(id, x, y, theta)
-        bots[id].point = self.p
-        
-        
-        
+        if id in bots:
+            bots[id].point = self.p
+        else: 
+            bots[id] = Bot(id)
+            bots[id].point = self.p
+   
         
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left
@@ -48,8 +51,8 @@ class Receiver:
         
 if __name__ == '__main__': 
     
-    my_id = 4
-    bots = {4:Bot(4), 5:Bot(5)}
+    my_id = sys.argv[1]
+    bots = {my_id:Bot(my_id)}
     
     rospy.init_node('test', anonymous=True)
     rospy.loginfo("Starting test node")
