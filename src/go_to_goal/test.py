@@ -46,11 +46,10 @@ class Receiver:
             bots[id] = Bot(id)
             bots[id].point = self.p
    
-        
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left
-        bots[my_id].left_speed = status_msg.speed_front_right
-        bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/2
+        bots[my_id].right_speed = status_msg.speed_front_right
+        bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/4 # Average speed forward, divided by two to match speed on cmdvel
         
 if __name__ == '__main__': 
     
