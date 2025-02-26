@@ -3,6 +3,7 @@
 import rospy
 from gv_client.msg import GulliViewPosition
 from roswifibot.msg import Status
+import sys
 
 
 class Point:
@@ -23,6 +24,9 @@ class Bot:
         self.right_speed = 0
         self.absolute_speed = 0
         self.point = None
+        
+    def __repr__(self):
+        return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
 
 class Receiver:
@@ -36,18 +40,22 @@ class Receiver:
         y = position_msg.y
         theta = position_msg.theta
         self.p = Point(id, x, y, theta)
-        bots[id].point = self.p
-        
+        if id in bots:
+            bots[id].point = self.p
+        else: 
+            bots[id] = Bot(id)
+            bots[id].point = self.p
+   
         
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left
         bots[my_id].left_speed = status_msg.speed_front_right
-        bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/4 # Average speed forward, divided by two to match speed on cmdvel
+        bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/2
         
 if __name__ == '__main__': 
     
-    my_id = 4
-    bots = {4:Bot(4), 5:Bot(5)}
+    my_id = sys.argv[1]
+    bots = {my_id:Bot(my_id)}
     
     rospy.init_node('test', anonymous=True)
     rospy.loginfo("Starting test node")
