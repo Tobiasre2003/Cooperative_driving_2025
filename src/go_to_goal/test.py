@@ -6,7 +6,7 @@ from roswifibot.msg import Status
 import sys
 import socket
 import threading
-
+import select
 
 class Point:
     def __init__(self, id, x, y, theta):
@@ -47,7 +47,7 @@ class Ros_receiver:
         else: 
             bots[id] = Bot(id)
             bots[id].point = self.p
-        print(x,y,theta)
+
    
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left/2
@@ -56,46 +56,71 @@ class Ros_receiver:
 
 
 
-def listen(run, adress, port):
+def listen(run_flag, adress, port, d):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_address = (adress, port)
-    print('starting up on %s port %s' % server_address)
     sock.bind(server_address)
-    while run:
+    while run_flag.is_set():
+        try:
+            ready, _, _ = select.select([sock], [], [], 1)
+            if ready:
+                data, sender_adress = sock.recvfrom(4096)
+                d.data = data.decode()
+                d.adress = sender_adress
+        except socket.timeout:
+            break
 
-        print(f'waiting to receive message')
-        data, address = sock.recvfrom(4096)
-
-        print(f'received {len(data)} bytes from {address}')
-        print(data)
+    sock.close()
+        
 
 
+def send(adress, port, msg):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(msg.encode(), (adress, port))
+    sock.close()
+
+
+class Data:
+    data = ""
+    adress = None
 
 
 
 if __name__ == '__main__': 
     try:
-        global run
-        run = True
-        my_id = sys.argv[1]
+        d = Data()
+        
+        run_flag = threading.Event()
+        run_flag.set()
+        my_id = int(sys.argv[1])
         bots = {my_id:Bot(my_id)}
+        
+        ip = {4:'192.168.50.102',5:'192.168.50.103'}
         
         rospy.init_node('test', anonymous=True)
         rospy.loginfo("Starting test node")
         
         node = Ros_receiver()
         
-        t = threading.Thread(target=listen, args=(run, '192.168.50.103', 2121))
+        t = threading.Thread(target=listen, args=(run_flag, ip[my_id], 2020,d))
         t.start()
         
-        rospy.spin() 
-        
         while not rospy.is_shutdown():
-            if bots[4].absolute_speed != 0:
-                print(bots[4].absolute_speed,bots[4].right_speed,bots[4].left_speed)
+            if not d.adress is None: 
+                print(d.data, d.adress[0])
+                send(d.adress[0], 2020,d.data)
+                exit()
+    
+            if bots[my_id].absolute_speed != 0:
+                print(bots[my_id].absolute_speed,bots[my_id].right_speed,bots[my_id].left_speed)
+                
     except KeyboardInterrupt:
-        run = False
+        run_flag.clear()
         t.join()
+    finally:
+        run_flag.clear()
+        t.join()
+        
 
             
 
