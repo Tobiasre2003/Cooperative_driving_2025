@@ -4,6 +4,8 @@ import rospy
 from gv_client.msg import GulliViewPosition
 from roswifibot.msg import Status
 import sys
+import socket
+import threading
 
 
 class Point:
@@ -29,7 +31,7 @@ class Bot:
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
 
-class Receiver:
+class Ros_receiver:
     def __init__(self):
         rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
         rospy.Subscriber('status', Status, self.status)
@@ -45,12 +47,33 @@ class Receiver:
         else: 
             bots[id] = Bot(id)
             bots[id].point = self.p
+        print(x,y,theta)
    
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
         bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/2 # Average speed forward, divided by two to match speed on cmdvel
-        
+
+
+
+def listen(adress, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_address = (adress, port)
+    print('starting up on %s port %s' % server_address)
+    sock.bind(server_address)
+    while True:
+        try:
+            print(f'waiting to receive message')
+            data, address = sock.recvfrom(4096)
+
+            print(f'received {len(data)} bytes from {address}')
+            print(data)
+        except KeyboardInterrupt:
+            print('done')
+            break
+
+
+
 if __name__ == '__main__': 
     
     my_id = sys.argv[1]
@@ -59,10 +82,15 @@ if __name__ == '__main__':
     rospy.init_node('test', anonymous=True)
     rospy.loginfo("Starting test node")
     
-    node = Receiver()
+    node = Ros_receiver()
+    
+    t = threading.Thread(target=listen, args=('192.168.50.103', 2121))
+    t.start()
+    
     rospy.spin() 
     
     while not rospy.is_shutdown():
         if bots[4].absolute_speed != 0:
             print(bots[4].absolute_speed,bots[4].right_speed,bots[4].left_speed)
+            
 
