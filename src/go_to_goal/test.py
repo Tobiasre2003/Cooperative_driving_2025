@@ -27,6 +27,7 @@ class Bot:
         self.left_speed = 0
         self.right_speed = 0
         self.absolute_speed = 0
+        self.last_speed_update = None
         self.point = None
         
         self.last_update = rospy.get_time()
@@ -40,6 +41,13 @@ class Bot:
         self.acceleration = 0
         
         
+    def add_speed(self, speed):
+        time = rospy.get_time()
+        if not self.last_speed_update is None:
+            self.acceleration = (speed-self.absolute_speed)/(time-self.last_speed_update)
+        self.last_speed_update = time 
+        self.absolute_speed = speed
+                
     def __repr__(self):
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
@@ -65,8 +73,7 @@ class Receiver:
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
-        bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/2 # Average speed forward, divided by two to match speed on cmdvel
-
+        bots[my_id].add_speed((bots[my_id].left_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
 
 
 def listen(run_flag, adress, port, d):
@@ -171,9 +178,6 @@ class Data:
         
         
         
-
-
-
 
 if __name__ == '__main__': 
     try:
