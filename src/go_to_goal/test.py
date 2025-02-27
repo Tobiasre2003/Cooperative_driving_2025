@@ -29,6 +29,17 @@ class Bot:
         self.absolute_speed = 0
         self.point = None
         
+        self.last_update = rospy.get_time()
+        self.enter = False
+        
+        self.current_lane = ""
+        self.next_lane = ""
+        
+        self.mean_time_to_intersection = None
+        
+        self.acceleration = 0
+        
+        
     def __repr__(self):
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
@@ -69,6 +80,7 @@ def listen(run_flag, adress, port, d):
                 data, sender_adress = sock.recvfrom(4096)
                 d.data = data.decode()
                 d.adress = sender_adress
+                d.update()
         except socket.timeout:
             break
 
@@ -130,6 +142,36 @@ class Data:
             else: element = element[1:-1]
             arr[i] = element
         return arr
+    
+    def update(self):
+        data_list = self.to_list()
+        id = data_list[0]
+        msg_type = data_list[1]
+        time = rospy.get_time()
+        
+        if msg_type == "ENTER" : 
+            bots[id].enter = True
+            bots[id].current_lane = data_list[2]
+            bots[id].next_lane = data_list[3]
+            bots[id].mean_time_to_intersection = data_list[4]
+            bots[id].last_update = time
+        
+        elif msg_type == "EXIT" : 
+            bots[id].enter = False
+            bots[id].next_lane = data_list[2]
+            bots[id].last_update = time
+        
+        elif msg_type == "HB" : 
+            state = data_list[2]
+            bots[id].point.x = state[0]
+            bots[id].point.y = state[1]
+            bots[id].absolute_speed = state[2]
+            bots[id].acceleration = state[3]
+            bots[id].last_update = time
+        
+        
+        
+
 
 
 
