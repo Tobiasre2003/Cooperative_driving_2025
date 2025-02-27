@@ -74,8 +74,6 @@ def listen(run_flag, adress, port, d):
 
     sock.close()
         
-
-
 def send(adress, port, msg):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg.encode(), (adress, port))
@@ -85,20 +83,53 @@ class Speed:
     def __init__(self):
         self.publisher = rospy.Publisher('gv_laptop', LaptopSpeed, queue_size=10)
     
-    def create_msg(self, speed):
+    def create_msg(self, speed, restart = False):
         header = Header()
         header.stamp = rospy.Time.now()
-        return LaptopSpeed(header=header, tag_id=my_id, speed=speed, restart=False)
+        return LaptopSpeed(header=header, tag_id=my_id, speed=speed, restart=restart)
     
     def setSpeed(self, speed):
         msg = self.create_msg(speed)
         self.publisher.publish(msg)
 
-        
 
 class Data:
     data = ""
     adress = None
+    
+    def isfloat(self, num):
+        try:
+            float(num)
+            return True
+        except ValueError:
+            return False
+
+    def to_list(self, string = ""):
+        if string == "": string = self.data
+        string = string[1:-1]
+        str_element = ""
+        arr = []
+        block = 0
+        for j in range(len(string)):
+            if string[j]=="[": block+=1
+            if string[j]=="]": block-=1
+            if string[j] == "," and block == 0:
+                arr.append(str_element)
+                str_element="" 
+                continue
+            str_element+=string[j]
+        arr.append(str_element)
+        for i in range(len(arr)):
+            element = arr[i]
+            if i != 0:element=element[1:]
+            if "[" in element: element = self.to_list(element)
+            elif element.isdigit(): element = int(element)
+            elif self.isfloat(element): element = float(element)
+            elif element == "False": element = False
+            elif element == "True": element = True
+            else: element = element[1:-1]
+            arr[i] = element
+        return arr
 
 
 
@@ -119,12 +150,12 @@ if __name__ == '__main__':
         
         node = Receiver()
         
-        t = threading.Thread(target=listen, args=(run_flag, ip[my_id], 2020,d))
+        t = threading.Thread(target=listen, args=(run_flag, ip[my_id], 2020, d))
         t.start()
         s.setSpeed(0)
         while not rospy.is_shutdown():
             if not d.adress is None: 
-                print(d.data, d.adress[0])
+                print(d.to_list(), d.adress[0])
                 send(d.adress[0], 2020, d.data)
                 exit()
     
