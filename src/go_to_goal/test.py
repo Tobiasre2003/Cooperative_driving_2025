@@ -56,41 +56,46 @@ class Ros_receiver:
 
 
 
-def listen(adress, port):
+def listen(run, adress, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_address = (adress, port)
     print('starting up on %s port %s' % server_address)
     sock.bind(server_address)
-    while True:
-        try:
-            print(f'waiting to receive message')
-            data, address = sock.recvfrom(4096)
+    while run:
 
-            print(f'received {len(data)} bytes from {address}')
-            print(data)
-        except KeyboardInterrupt:
-            print('done')
-            break
+        print(f'waiting to receive message')
+        data, address = sock.recvfrom(4096)
+
+        print(f'received {len(data)} bytes from {address}')
+        print(data)
+
+
 
 
 
 if __name__ == '__main__': 
-    
-    my_id = sys.argv[1]
-    bots = {my_id:Bot(my_id)}
-    
-    rospy.init_node('test', anonymous=True)
-    rospy.loginfo("Starting test node")
-    
-    node = Ros_receiver()
-    
-    t = threading.Thread(target=listen, args=('192.168.50.103', 2121))
-    t.start()
-    
-    rospy.spin() 
-    
-    while not rospy.is_shutdown():
-        if bots[4].absolute_speed != 0:
-            print(bots[4].absolute_speed,bots[4].right_speed,bots[4].left_speed)
+    try:
+        global run
+        run = True
+        my_id = sys.argv[1]
+        bots = {my_id:Bot(my_id)}
+        
+        rospy.init_node('test', anonymous=True)
+        rospy.loginfo("Starting test node")
+        
+        node = Ros_receiver()
+        
+        t = threading.Thread(target=listen, args=(run, '192.168.50.103', 2121))
+        t.start()
+        
+        rospy.spin() 
+        
+        while not rospy.is_shutdown():
+            if bots[4].absolute_speed != 0:
+                print(bots[4].absolute_speed,bots[4].right_speed,bots[4].left_speed)
+    except KeyboardInterrupt:
+        run = False
+        t.join()
+
             
 
