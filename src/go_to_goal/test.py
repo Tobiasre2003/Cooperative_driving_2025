@@ -7,6 +7,8 @@ import sys
 import socket
 import threading
 import select
+from gv_client.msg import LaptopSpeed
+from std_msgs.msg import Header
 
 class Point:
     def __init__(self, id, x, y, theta):
@@ -31,7 +33,7 @@ class Bot:
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
 
-class Ros_receiver:
+class Receiver:
     def __init__(self):
         rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
         rospy.Subscriber('status', Status, self.status)
@@ -79,6 +81,20 @@ def send(adress, port, msg):
     sock.sendto(msg.encode(), (adress, port))
     sock.close()
 
+class Speed:
+    def __init__(self):
+        self.publisher = rospy.Publisher('gv_laptop', LaptopSpeed, queue_size=10)
+    
+    def create_msg(self, speed):
+        header = Header()
+        header.stamp = rospy.Time.now()
+        return LaptopSpeed(header=header, tag_id=my_id, speed=speed, restart=False)
+    
+    def setSpeed(self, speed):
+        msg = self.create_msg(speed)
+        self.publisher.publish(msg)
+
+        
 
 class Data:
     data = ""
@@ -89,6 +105,7 @@ class Data:
 if __name__ == '__main__': 
     try:
         d = Data()
+        s = Speed()
         
         run_flag = threading.Event()
         run_flag.set()
@@ -100,15 +117,15 @@ if __name__ == '__main__':
         rospy.init_node('test', anonymous=True)
         rospy.loginfo("Starting test node")
         
-        node = Ros_receiver()
+        node = Receiver()
         
         t = threading.Thread(target=listen, args=(run_flag, ip[my_id], 2020,d))
         t.start()
-        
+        s.setSpeed(0)
         while not rospy.is_shutdown():
             if not d.adress is None: 
                 print(d.data, d.adress[0])
-                send(d.adress[0], 2020,d.data)
+                send(d.adress[0], 2020, d.data)
                 exit()
     
             if bots[my_id].absolute_speed != 0:
