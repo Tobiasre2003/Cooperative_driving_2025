@@ -5,13 +5,16 @@ import os
 import socket
 import sys
 import pandas as pd
+import rospy
 import datetime
 import math
 import argparse
 from time import sleep
 from collections import deque
 from socketserver import BaseRequestHandler, UDPServer
-from test import Receiver
+from gv_client.msg import GulliViewPosition
+from roswifibot.msg import Status
+
 
 time = lambda: datetime.datetime.now()
 time_s = lambda: time().timestamp()
@@ -267,7 +270,6 @@ class Detections:
 #-------------------------------------------------------------------
 
 
-
 # Print and log to file
 def log(s):
     print(s)
@@ -303,9 +305,196 @@ def normalize_time():
         df.time[i] = df.time[i] - df.time[0]
     df.time[0] = 0
 
+# def intersection_plot():
+#     normalize_time()
+
+#     path = f'logs/{file_name}/{file_name}'
+#     # save dataframe to csv in logs folder and enumerate
+#     df.to_csv(f'{path}.csv')
+#     try:
+#         plt = df.plot(x = 'time', y = 'ttc', xlabel='Time', ylabel='TTC', title='TTC')
+#         plt.get_figure().savefig(f'{path}_TTC.png')
+
+#         plt = df.plot(x= 'time', y=['main_speed', 'ramp_speed'], ylabel = 'Hastighet [m/s]', xlabel='Tid [s]')
+#         plt.get_figure().savefig(f'{path}_speeds.png')
+#     except Exception as e:
+#         log(e)
+
+# def save_plots():
+#     if not detections.has_both():
+#         log('No detections, no plots')
+#     else:
+#         normalize_time()
+
+#         path = f'logs/{file_name}/{file_name}'
+#         # save dataframe to csv in logs folder and enumerate
+#         df.to_csv(f'{path}.csv')
+    
+#         try:
+#             plt = df.plot(x='time', y=['main_speed', 'ramp_speed'], grid=True, xlabel="Time [s]", ylabel='Speed [m/s]', title = "Speeds")
+#             plt.get_figure().savefig(f'{path}_speeds.png')
+
+#             plt = df.plot(x='time', y=['main_distance_to_merge', 'ramp_distance_to_merge'], grid=True, xlabel = 'Time [s]', ylabel='Meters', title = "Distance to merge")
+#             plt.get_figure().savefig(f'{path}_distances.png')
+
+#             plt = df.plot(x='time', y = ['main_time_to_merge', 'ramp_time_to_merge', 'time_gap'], grid=True, xlabel = "Time [s]", ylabel='Seconds', title = "Time to merge")
+#             plt.get_figure().savefig(f'{path}_time_to_merge.png')
+
+#             plt = df.plot(x = 'time', y = ['CRI'], grid=True, xlabel = "Time [s]", ylabel='CRI', title = "CRI")
+#             plt.get_figure().savefig(f'{path}_cri.png')
+
+#             log('Plots saved')
+
+#         except:
+#             # print error cause in red
+#             print('\033[91m')
+#             log(f'Error saving plots: {sys.exc_info()[0]}')
+#             log(f'Reason: {sys.exc_info()[1]}')
+#             # reset color
+#             print('\033[0m')
+
+
 #-----------------------------------------------------------------------
 
+class Receiver:
+    def __init__(self):
+        rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
+        rospy.Subscriber('status', Status, self.status)
+    def get_data(position_msg, status_msg):
+        bot = Bot(position_msg.tag_id, Point(position_msg.x, position_msg.y), position_msg.theta)
+        detections.detect_bot(bot)
+        if detections.has_both():# and len(packet.detections) == 2:
+            log(detections)
+            merge_done = False
 
+            # perform calculations
+            if args.algorithm == 'intersection':
+                calculation_intersection()
+            else:
+                merge_done = calculation()
+
+            # send out over UDP
+            self.send_speed()
+            log('_'*32)
+
+            # reset detections if both have left the merge
+            if(merge_done):
+                #save_plots()
+                detections.reset()
+        else:
+            log("Not enough detections")
+
+# Calculates the speed the vehicles need to achieve to keep a safe distance
+def calculation():
+    # bool that gets returned True when the merge is done
+    merge_done = False
+
+    # No detections, do nothing
+    if not detections.has_both():
+        return merge_done
+
+    # get positions from the robots  
+    ramp_pos = detections.get_ramp_p()
+    main_pos = detections.get_main_p()
+
+    # Get the current speed that has been sent to the robots
+    # TODO get actual data from robots 
+    main_speed = detections.main.bot.speed
+    ramp_speed = detections.ramp.bot.speed
+
+    main_passed_merge = main_pos.y < MERGING_END.y
+    ramp_passed_merge = ramp_pos.y < MERGING_END.y
+
+    # Get current distances to the merging Point
+    # since ramp is not travelling straight toward the merge point a point at the end of the ramp is used until
+    # it has passed that point
+    if ramp_pos.y < MERGING_START.y:
+        ramp_distance_to_merge = distance_in_m(ramp_pos, MERGING_END)
+    else:
+        ramp_distance_to_merge = distance_in_m(ramp_pos, MERGING_START) + ramp_length
+    main_distance_to_merge = distance_in_m(main_pos, MERGING_END)
+
+    # Get the time they have left until they are at the merging point
+    ramp_time_to_merge = ramp_distance_to_merge / ramp_speed
+    main_time_to_merge = main_distance_to_merge / main_speed
+
+    # Time gap between the robots
+    time_gap = abs(ramp_time_to_merge - main_time_to_merge)
+    print("Timegap between robots: ", time_gap)
+
+    #cri calculations
+    d_b = abs(ramp_distance_to_merge - main_distance_to_merge) - length_of_wifibot
+    d_a = 1.5
+    k_b = d_b/(d_a + d_b)
+    if k_b <= 0:
+        cri = 1
+    else: cri = math.e**(-k_b)
+    
+    # Set speeds when the bots pass merging point
+    if main_passed_merge and ramp_passed_merge:
+        detections.reset_speeds()
+        log("merge done")
+        merge_done = True
+        df.loc[len(df)] = [time_s(), main_pos, ramp_pos, main_speed, ramp_speed, main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 0, time_gap, cri]
+        return merge_done
+    #only main has passed
+    elif main_passed_merge:
+        #main_speed = min(MAX_SPEED, main_speed * 1.005)
+        main_speed = MAX_SPEED
+        detections.set_main_speed(main_speed)
+        df.loc[len(df)] = [time_s(), main_pos, ramp_pos, main_speed, ramp_speed, main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 0, time_gap, cri]
+        return merge_done
+    #only ramp has passed
+    elif ramp_passed_merge:
+        #ramp_speed = min(MAX_SPEED, ramp_speed * 1.005)
+        ramp_speed = MAX_SPEED
+        detections.set_ramp_speed(ramp_speed)
+        df.loc[len(df)] = [time_s(), main_pos, ramp_pos, main_speed, ramp_speed, main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 0, time_gap, cri]
+        return merge_done
+
+    
+    if time_gap < MERGING_WINDOW:
+        # time vehicles need to increase between them
+        correction_time = MERGING_WINDOW - time_gap 
+        
+        # Main robot is first
+        if main_time_to_merge <= ramp_time_to_merge:
+            #ramp_speed = max(ramp_distance_to_merge / (ramp_time_to_merge + correction_time), ramp_speed * 0.995)
+            ramp_speed = ramp_distance_to_merge / (ramp_time_to_merge + correction_time)
+            #main_speed = min(MAX_SPEED, main_speed * 1.005)
+            main_speed = MAX_SPEED
+
+        # Ramp robot is first
+        else:
+            #ramp_speed = min(MAX_SPEED, ramp_speed * 1.005)
+            #main_speed = max(main_distance_to_merge / (main_time_to_merge + correction_time), main_speed * 0.995) 
+            ramp_speed = MAX_SPEED 
+            main_speed = main_distance_to_merge / (main_time_to_merge + correction_time)
+  
+
+    
+    # Speed up if time gap is large enough
+    else:
+        correction_time = time_gap - MERGING_WINDOW
+        if main_time_to_merge <= ramp_time_to_merge:
+            #main_speed = min(MAX_SPEED, main_speed * 1.005)
+            #ramp_speed = min(ramp_distance_to_merge / (ramp_time_to_merge - correction_time), ramp_speed * 1.005)
+            main_speed = MAX_SPEED
+            ramp_speed = ramp_distance_to_merge / (ramp_time_to_merge - correction_time)
+        else:
+            #ramp_speed = min(MAX_SPEED, ramp_speed * 1.005)
+            #main_speed = min(main_distance_to_merge / (main_time_to_merge - correction_time), main_speed * 1.005)
+            ramp_speed = MAX_SPEED
+            main_speed = main_distance_to_merge / (main_time_to_merge - correction_time)
+
+    # set the speeds that will be transmitted    
+    detections.set_main_speed(main_speed)
+    detections.set_ramp_speed(ramp_speed)
+
+    df.loc[len(df)] = [time_s(), main_pos, ramp_pos, detections.get_main_speed(), detections.get_ramp_speed(), 
+                       main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 
+                       correction_time, time_gap, cri]
+    return merge_done
 
 
 
