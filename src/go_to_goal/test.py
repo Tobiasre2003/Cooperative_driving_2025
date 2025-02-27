@@ -27,8 +27,27 @@ class Bot:
         self.left_speed = 0
         self.right_speed = 0
         self.absolute_speed = 0
+        self.last_speed_update = None
         self.point = None
         
+        self.last_update = rospy.get_time()
+        self.enter = False
+        
+        self.current_lane = ""
+        self.next_lane = ""
+        
+        self.mean_time_to_intersection = None
+        
+        self.acceleration = 0
+        
+        
+    def add_speed(self, speed):
+        time = rospy.get_time()
+        if not self.last_speed_update is None:
+            self.acceleration = (speed-self.absolute_speed)/(time-self.last_speed_update)
+        self.last_speed_update = time 
+        self.absolute_speed = speed
+                
     def __repr__(self):
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
 
@@ -54,8 +73,7 @@ class Receiver:
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
-        bots[my_id].absolute_speed = (bots[my_id].left_speed + bots[my_id].left_speed)/2 # Average speed forward, divided by two to match speed on cmdvel
-
+        bots[my_id].add_speed((bots[my_id].left_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
 
 
 def listen(run_flag, adress, port, d):
@@ -69,6 +87,7 @@ def listen(run_flag, adress, port, d):
                 data, sender_adress = sock.recvfrom(4096)
                 d.data = data.decode()
                 d.adress = sender_adress
+                d.update()
         except socket.timeout:
             break
 
@@ -130,8 +149,35 @@ class Data:
             else: element = element[1:-1]
             arr[i] = element
         return arr
-
-
+    
+    def update(self):
+        data_list = self.to_list()
+        id = data_list[0]
+        msg_type = data_list[1]
+        time = rospy.get_time()
+        
+        if msg_type == "ENTER" : 
+            bots[id].enter = True
+            bots[id].current_lane = data_list[2]
+            bots[id].next_lane = data_list[3]
+            bots[id].mean_time_to_intersection = data_list[4]
+            bots[id].last_update = time
+        
+        elif msg_type == "EXIT" : 
+            bots[id].enter = False
+            bots[id].next_lane = data_list[2]
+            bots[id].last_update = time
+        
+        elif msg_type == "HB" : 
+            state = data_list[2]
+            bots[id].point.x = state[0]
+            bots[id].point.y = state[1]
+            bots[id].absolute_speed = state[2]
+            bots[id].acceleration = state[3]
+            bots[id].last_update = time
+        
+        
+        
 
 if __name__ == '__main__': 
     try:
