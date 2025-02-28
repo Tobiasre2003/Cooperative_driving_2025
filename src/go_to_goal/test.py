@@ -9,26 +9,78 @@ import threading
 import select
 from gv_client.msg import LaptopSpeed
 from std_msgs.msg import Header
+import math
+
+
 
 class Point:
-    def __init__(self, id, x, y, theta):
-        self.id = id
+    def __init__(self,x:float, y:float):
         self.x = x
         self.y = y
-        self.theta = theta
-        
+
     def __str__(self):
-        return f'(Id: {self.id}, X: {self.x}, Y: {self.y}, Theta: {self.theta})'
+        return f'(X: {self.x}, Y: {self.y})'
+    
+    def ang_to_point(self, x, y):
+        return math.atan2(x-self.x, y-self.y) % 2*math.pi
+    
+    
+class Line:
+    def __init__(self, p1:Point, p2:Point):
+        self.p1 = p1
+        self.p2 = p2
 
+    def get_lin_func(self):
+        if self.p1.x != self.p2.x:
+            k = (self.p2.y-self.p1.y)/(self.p2.x-self.p1.x)
+            m = self.p2.y - k*self.p1.x
+        else: return (self.p1.x)
+        return (k,m)
+    
+    def crossing(self, line): 
+        l1 = self.get_lin_func()
+        l2 = line.get_lin_func()
+        
+        if len(l1)==1 and len(l2)==1: 
+            if self.p1.x == line.p1.x: return (self.p1.x, range(-math.inf,math.inf))
+            return (None, None)
+        elif len(l1)==1: 
+            k = l2[0]
+            m = l2[1]
+            return (self.p1.x, self.p1.x*k+m)
+        elif len(l2)==1:
+            k = l1[0]
+            m = l1[1]
+            return (line.p1.x, line.p1.x*k+m)
+        
+        k1 = l1[0]
+        m1 = l1[1]
+        k2 = l2[0]
+        m2 = l2[1]
+        
+        if k1 == 0 and k2 == 0: 
+            if self.p1.y == line.p1.y: return (range(-math.inf,math.inf), self.p1.y)
+            return (None, None)
 
+        x = (m2 - m1)/(k1 - k2)
+        y = m1 + k1 * x 
+        return (x,y)
+
+    
+        
+        
+        
+    
+        
 class Bot:
-    def __init__(self, id):
+    def __init__(self, id:int):
         self.id = id
         self.left_speed = 0
         self.right_speed = 0
         self.absolute_speed = 0
         self.last_speed_update = None
         self.point = None
+        self.theta = None
         
         self.last_update = rospy.get_time()
         self.enter = False
@@ -41,15 +93,46 @@ class Bot:
         self.acceleration = 0
         
         
-    def add_speed(self, speed):
+    def add_speed(self, speed:float):
         time = rospy.get_time()
         if not self.last_speed_update is None:
-            self.acceleration = (speed-self.absolute_speed)/(time-self.last_speed_update)
+            self.acceleration = (speed-self.absolute_speed)/(time-self.last_speed_update) # [m/s^2]
         self.last_speed_update = time 
         self.absolute_speed = speed
                 
     def __repr__(self):
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
+
+class Area:
+    def __init__(self, lines:list[Line]): 
+        self.lines = lines
+        
+    def calc_angs(self):None
+        
+    def in_area(self, x:float, y:float):
+        None
+
+    
+    def heading_towards_area(self, bot:Bot):
+        point = bot.point
+        angles = []
+        
+        for line in self.lines:
+            angles.append(point.ang_to_point(line.p1.x, line.p1.y))
+            angles.append(point.ang_to_point(line.p2.x, line.p2.y))
+        
+        max_angle = max(angles)
+        min_angle = min(angles)
+        
+        theta = bot.theta % 2*math.pi
+
+        if max_angle - min_angle > math.pi:
+            theta = (theta + 2*math.pi) % 2*math.pi
+            min_angle = (min_angle + 2*math.pi) % 2*math.pi
+            max_angle = (max_angle + 2*math.pi) % 2*math.pi
+            
+        return min_angle <= theta <= max_angle, angles
+
 
 
 class Receiver:
@@ -62,12 +145,14 @@ class Receiver:
         x = position_msg.x
         y = position_msg.y
         theta = position_msg.theta
-        self.p = Point(id, x, y, theta)
+        self.p = Point(x, y)
         if id in bots:
             bots[id].point = self.p
+            bots[id].theta = theta
         else: 
             bots[id] = Bot(id)
             bots[id].point = self.p
+            bots[id].theta = theta
 
    
     def status(self, status_msg):
@@ -176,11 +261,13 @@ class Data:
             bots[id].acceleration = state[3]
             bots[id].last_update = time
         
-        
+
+
         
 
 if __name__ == '__main__': 
     try:
+        
         d = Data()
         s = Speed()
         
