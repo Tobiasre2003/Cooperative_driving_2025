@@ -56,18 +56,6 @@ class Point:
     
     
 class Bot:
-    def __init__(self, id, point, theta):
-        self.id = id
-        # self.left_speed = 0
-        # self.right_speed = 0
-        # self.absolute_speed = 0
-        self.speed = self.set_speed(self.start_speed)
-        self.set_point 
-        self.set_theta(theta)
-        
-    def __str__(self):
-        return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
-    
     #main_x_shift = 0 # amount to adjust x by to "fake" the bot being in the actual lane for testing
     start_speed = START_SPEED
     start_theta = 0
@@ -75,7 +63,18 @@ class Bot:
     min_safe_speed = 0
 
     restart = False
-
+    
+    def __init__(self, id, point, theta):
+        self.id = id
+        self.set_point(point)
+        self.set_theta(theta)
+        self.absolute_speed = self.set_speed(self.start_speed)
+        self.left_speed = 0
+        self.right_speed = 0
+        
+    def __str__(self):
+        return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
+    
     def __init__(self, id, p, t):
         self.id = id
         self.set_p(p)
@@ -182,11 +181,11 @@ class Detections:
     def has_ramp_id(self, bot):
         return self.has_ramp() and self.ramp.bot.id == bot.id
 
-    def get_main_p(self):
-        return self.main.bot.p
+    def get_main_point(self):
+        return self.main.bot.point
 
-    def get_ramp_p(self):
-        return self.ramp.bot.p
+    def get_ramp_point(self):
+        return self.ramp.bot.point
 
     def get_main_speed(self):
         return self.main.bot.speed
@@ -358,15 +357,24 @@ def normalize_time():
 
 class Receiver:
     def __init__(self):
-        rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
         rospy.Subscriber('status', Status, self.status)
-    def get_data(position_msg, status_msg):
+        rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
+        self.left_speed = 0
+        self.right_speed = 0
+        self.absolute_speed = 0
+        
+    def status(self, status_msg):
+        self.left_speed = status_msg.speed_front_left / 2 # The speeds in status topic have unit that is double that of cmd_vel
+        self.right_speed = status_msg.speed_front_right / 2
+        self.absolute_speed = (self.left_speed + self.right_speed) / 2 # Get speed in the linear forward direction
+        
+    def positions(self, position_msg):
         bot = Bot(position_msg.tag_id, Point(position_msg.x, position_msg.y), position_msg.theta)
         detections.detect_bot(bot)
         if detections.has_both():# and len(packet.detections) == 2:
             log(detections)
             merge_done = False
-
+        #---------------------------TODO-TODO-TODO----------------
             # perform calculations
             if args.algorithm == 'intersection':
                 calculation_intersection()
@@ -383,121 +391,7 @@ class Receiver:
                 detections.reset()
         else:
             log("Not enough detections")
-
-# Calculates the speed the vehicles need to achieve to keep a safe distance
-def calculation():
-    # bool that gets returned True when the merge is done
-    merge_done = False
-
-    # No detections, do nothing
-    if not detections.has_both():
-        return merge_done
-
-    # get positions from the robots  
-    ramp_pos = detections.get_ramp_p()
-    main_pos = detections.get_main_p()
-
-    # Get the current speed that has been sent to the robots
-    # TODO get actual data from robots 
-    main_speed = detections.main.bot.speed
-    ramp_speed = detections.ramp.bot.speed
-
-    main_passed_merge = main_pos.y < MERGING_END.y
-    ramp_passed_merge = ramp_pos.y < MERGING_END.y
-
-    # Get current distances to the merging Point
-    # since ramp is not travelling straight toward the merge point a point at the end of the ramp is used until
-    # it has passed that point
-    if ramp_pos.y < MERGING_START.y:
-        ramp_distance_to_merge = distance_in_m(ramp_pos, MERGING_END)
-    else:
-        ramp_distance_to_merge = distance_in_m(ramp_pos, MERGING_START) + ramp_length
-    main_distance_to_merge = distance_in_m(main_pos, MERGING_END)
-
-    # Get the time they have left until they are at the merging point
-    ramp_time_to_merge = ramp_distance_to_merge / ramp_speed
-    main_time_to_merge = main_distance_to_merge / main_speed
-
-    # Time gap between the robots
-    time_gap = abs(ramp_time_to_merge - main_time_to_merge)
-    print("Timegap between robots: ", time_gap)
-
-    #cri calculations
-    d_b = abs(ramp_distance_to_merge - main_distance_to_merge) - length_of_wifibot
-    d_a = 1.5
-    k_b = d_b/(d_a + d_b)
-    if k_b <= 0:
-        cri = 1
-    else: cri = math.e**(-k_b)
-    
-    # Set speeds when the bots pass merging point
-    if main_passed_merge and ramp_passed_merge:
-        detections.reset_speeds()
-        log("merge done")
-        merge_done = True
-        df.loc[len(df)] = [time_s(), main_pos, ramp_pos, main_speed, ramp_speed, main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 0, time_gap, cri]
-        return merge_done
-    #only main has passed
-    elif main_passed_merge:
-        #main_speed = min(MAX_SPEED, main_speed * 1.005)
-        main_speed = MAX_SPEED
-        detections.set_main_speed(main_speed)
-        df.loc[len(df)] = [time_s(), main_pos, ramp_pos, main_speed, ramp_speed, main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 0, time_gap, cri]
-        return merge_done
-    #only ramp has passed
-    elif ramp_passed_merge:
-        #ramp_speed = min(MAX_SPEED, ramp_speed * 1.005)
-        ramp_speed = MAX_SPEED
-        detections.set_ramp_speed(ramp_speed)
-        df.loc[len(df)] = [time_s(), main_pos, ramp_pos, main_speed, ramp_speed, main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 0, time_gap, cri]
-        return merge_done
-
-    
-    if time_gap < MERGING_WINDOW:
-        # time vehicles need to increase between them
-        correction_time = MERGING_WINDOW - time_gap 
-        
-        # Main robot is first
-        if main_time_to_merge <= ramp_time_to_merge:
-            #ramp_speed = max(ramp_distance_to_merge / (ramp_time_to_merge + correction_time), ramp_speed * 0.995)
-            ramp_speed = ramp_distance_to_merge / (ramp_time_to_merge + correction_time)
-            #main_speed = min(MAX_SPEED, main_speed * 1.005)
-            main_speed = MAX_SPEED
-
-        # Ramp robot is first
-        else:
-            #ramp_speed = min(MAX_SPEED, ramp_speed * 1.005)
-            #main_speed = max(main_distance_to_merge / (main_time_to_merge + correction_time), main_speed * 0.995) 
-            ramp_speed = MAX_SPEED 
-            main_speed = main_distance_to_merge / (main_time_to_merge + correction_time)
-  
-
-    
-    # Speed up if time gap is large enough
-    else:
-        correction_time = time_gap - MERGING_WINDOW
-        if main_time_to_merge <= ramp_time_to_merge:
-            #main_speed = min(MAX_SPEED, main_speed * 1.005)
-            #ramp_speed = min(ramp_distance_to_merge / (ramp_time_to_merge - correction_time), ramp_speed * 1.005)
-            main_speed = MAX_SPEED
-            ramp_speed = ramp_distance_to_merge / (ramp_time_to_merge - correction_time)
-        else:
-            #ramp_speed = min(MAX_SPEED, ramp_speed * 1.005)
-            #main_speed = min(main_distance_to_merge / (main_time_to_merge - correction_time), main_speed * 1.005)
-            ramp_speed = MAX_SPEED
-            main_speed = main_distance_to_merge / (main_time_to_merge - correction_time)
-
-    # set the speeds that will be transmitted    
-    detections.set_main_speed(main_speed)
-    detections.set_ramp_speed(ramp_speed)
-
-    df.loc[len(df)] = [time_s(), main_pos, ramp_pos, detections.get_main_speed(), detections.get_ramp_speed(), 
-                       main_distance_to_merge, ramp_distance_to_merge, main_time_to_merge, ramp_time_to_merge, 
-                       correction_time, time_gap, cri]
-    return merge_done
-
-
-
+        #---------------------------TODO-TODO-TODO----------------
 
 
 if __name__ == "__main__":
