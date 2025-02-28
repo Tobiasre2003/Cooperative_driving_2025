@@ -5,13 +5,16 @@ import os
 import socket
 import sys
 import pandas as pd
+import rospy
 import datetime
 import math
 import argparse
 from time import sleep
 from collections import deque
 from socketserver import BaseRequestHandler, UDPServer
-from test import Receiver
+from gv_client.msg import GulliViewPosition
+from roswifibot.msg import Status
+
 
 time = lambda: datetime.datetime.now()
 time_s = lambda: time().timestamp()
@@ -53,18 +56,6 @@ class Point:
     
     
 class Bot:
-    def __init__(self, id, point, theta):
-        self.id = id
-        # self.left_speed = 0
-        # self.right_speed = 0
-        # self.absolute_speed = 0
-        self.speed = self.set_speed(self.start_speed)
-        self.set_point 
-        self.set_theta(theta)
-        
-    def __str__(self):
-        return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
-    
     #main_x_shift = 0 # amount to adjust x by to "fake" the bot being in the actual lane for testing
     start_speed = START_SPEED
     start_theta = 0
@@ -72,7 +63,18 @@ class Bot:
     min_safe_speed = 0
 
     restart = False
-
+    
+    def __init__(self, id, point, theta):
+        self.id = id
+        self.set_point(point)
+        self.set_theta(theta)
+        self.absolute_speed = self.set_speed(self.start_speed)
+        self.left_speed = 0
+        self.right_speed = 0
+        
+    def __str__(self):
+        return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
+    
     def __init__(self, id, p, t):
         self.id = id
         self.set_p(p)
@@ -179,11 +181,11 @@ class Detections:
     def has_ramp_id(self, bot):
         return self.has_ramp() and self.ramp.bot.id == bot.id
 
-    def get_main_p(self):
-        return self.main.bot.p
+    def get_main_point(self):
+        return self.main.bot.point
 
-    def get_ramp_p(self):
-        return self.ramp.bot.p
+    def get_ramp_point(self):
+        return self.ramp.bot.point
 
     def get_main_speed(self):
         return self.main.bot.speed
@@ -267,7 +269,6 @@ class Detections:
 #-------------------------------------------------------------------
 
 
-
 # Print and log to file
 def log(s):
     print(s)
@@ -303,12 +304,94 @@ def normalize_time():
         df.time[i] = df.time[i] - df.time[0]
     df.time[0] = 0
 
+# def intersection_plot():
+#     normalize_time()
+
+#     path = f'logs/{file_name}/{file_name}'
+#     # save dataframe to csv in logs folder and enumerate
+#     df.to_csv(f'{path}.csv')
+#     try:
+#         plt = df.plot(x = 'time', y = 'ttc', xlabel='Time', ylabel='TTC', title='TTC')
+#         plt.get_figure().savefig(f'{path}_TTC.png')
+
+#         plt = df.plot(x= 'time', y=['main_speed', 'ramp_speed'], ylabel = 'Hastighet [m/s]', xlabel='Tid [s]')
+#         plt.get_figure().savefig(f'{path}_speeds.png')
+#     except Exception as e:
+#         log(e)
+
+# def save_plots():
+#     if not detections.has_both():
+#         log('No detections, no plots')
+#     else:
+#         normalize_time()
+
+#         path = f'logs/{file_name}/{file_name}'
+#         # save dataframe to csv in logs folder and enumerate
+#         df.to_csv(f'{path}.csv')
+    
+#         try:
+#             plt = df.plot(x='time', y=['main_speed', 'ramp_speed'], grid=True, xlabel="Time [s]", ylabel='Speed [m/s]', title = "Speeds")
+#             plt.get_figure().savefig(f'{path}_speeds.png')
+
+#             plt = df.plot(x='time', y=['main_distance_to_merge', 'ramp_distance_to_merge'], grid=True, xlabel = 'Time [s]', ylabel='Meters', title = "Distance to merge")
+#             plt.get_figure().savefig(f'{path}_distances.png')
+
+#             plt = df.plot(x='time', y = ['main_time_to_merge', 'ramp_time_to_merge', 'time_gap'], grid=True, xlabel = "Time [s]", ylabel='Seconds', title = "Time to merge")
+#             plt.get_figure().savefig(f'{path}_time_to_merge.png')
+
+#             plt = df.plot(x = 'time', y = ['CRI'], grid=True, xlabel = "Time [s]", ylabel='CRI', title = "CRI")
+#             plt.get_figure().savefig(f'{path}_cri.png')
+
+#             log('Plots saved')
+
+#         except:
+#             # print error cause in red
+#             print('\033[91m')
+#             log(f'Error saving plots: {sys.exc_info()[0]}')
+#             log(f'Reason: {sys.exc_info()[1]}')
+#             # reset color
+#             print('\033[0m')
+
+
 #-----------------------------------------------------------------------
 
+class Receiver:
+    def __init__(self):
+        rospy.Subscriber('status', Status, self.status)
+        rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
+        self.left_speed = 0
+        self.right_speed = 0
+        self.absolute_speed = 0
+        
+    def status(self, status_msg):
+        self.left_speed = status_msg.speed_front_left / 2 # The speeds in status topic have unit that is double that of cmd_vel
+        self.right_speed = status_msg.speed_front_right / 2
+        self.absolute_speed = (self.left_speed + self.right_speed) / 2 # Get speed in the linear forward direction
+        
+    def positions(self, position_msg):
+        bot = Bot(position_msg.tag_id, Point(position_msg.x, position_msg.y), position_msg.theta)
+        detections.detect_bot(bot)
+        if detections.has_both():# and len(packet.detections) == 2:
+            log(detections)
+            merge_done = False
+        #---------------------------TODO-TODO-TODO----------------
+            # perform calculations
+            if args.algorithm == 'intersection':
+                calculation_intersection()
+            else:
+                merge_done = calculation()
 
+            # send out over UDP
+            self.send_speed()
+            log('_'*32)
 
-
-
+            # reset detections if both have left the merge
+            if(merge_done):
+                #save_plots()
+                detections.reset()
+        else:
+            log("Not enough detections")
+        #---------------------------TODO-TODO-TODO----------------
 
 
 if __name__ == "__main__":
