@@ -75,6 +75,10 @@ class Object:
         self.borders = borders
         self.velocity_vector = velocity_vector.get_unit_vector()
         
+    def update(self, pos:Point, theta:float):
+        self.pos = pos
+        self.direction = theta
+        
     def rotation_matrix(self, sign:int = 1) -> tuple[Vector]:
         return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
     
@@ -167,6 +171,12 @@ class Bot:
         
         self.acceleration = 0
         
+        self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], (0,1))
+
+    def update_pos(self, point, theta):
+        self.point = point
+        self.theta = theta
+        self.obj.update(self.point, self.theta)
         
     def add_speed(self, speed:float):
         time = rospy.get_time()
@@ -191,19 +201,15 @@ class Receiver:
         theta = position_msg.theta
         self.p = Point(x, y)
         if id in bots:
-            bots[id].point = self.p
-            bots[id].theta = theta
+            bots[id].update_pos(self.p, theta)
         else: 
             bots[id] = Bot(id)
-            bots[id].point = self.p
-            bots[id].theta = theta
+            bots[id].update_pos(self.p, theta)
 
-   
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
         bots[my_id].add_speed((bots[my_id].left_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
-
 
 def listen(run_flag, adress, port, d):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
