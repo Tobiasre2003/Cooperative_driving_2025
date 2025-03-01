@@ -21,57 +21,133 @@ class Point:
     def __str__(self):
         return f'(X: {self.x}, Y: {self.y})'
     
-    def ang_to_point(self, x, y):
-        return math.atan2(x-self.x, y-self.y) % 2*math.pi
+    def __repr__(self):
+        return f'(X: {self.x}, Y: {self.y})'
     
+    def distance_between_points(self, point) -> float:
+        return math.sqrt((self.x-point.x)**2 + (self.y-point.y)**2)
     
-class Line:
-    def __init__(self, p1:Point, p2:Point):
-        self.p1 = p1
-        self.p2 = p2
+    def get_moved_point(self, point):
+        return Point(self.x+point.x, self.y+point.y)
+    
 
-    def get_lin_func(self):
-        if self.p1.x != self.p2.x:
-            k = (self.p2.y-self.p1.y)/(self.p2.x-self.p1.x)
-            m = self.p2.y - k*self.p1.x
-        else: return (self.p1.x)
-        return (k,m)
+class Vector:
+    def __init__(self,x:float, y:float):
+        self.x = x
+        self.y = y
     
-    def crossing(self, line): 
-        l1 = self.get_lin_func()
-        l2 = line.get_lin_func()
-        
-        if len(l1)==1 and len(l2)==1: 
-            if self.p1.x == line.p1.x: return (self.p1.x, range(-math.inf,math.inf))
-            return (None, None)
-        elif len(l1)==1: 
-            k = l2[0]
-            m = l2[1]
-            return (self.p1.x, self.p1.x*k+m)
-        elif len(l2)==1:
-            k = l1[0]
-            m = l1[1]
-            return (line.p1.x, line.p1.x*k+m)
-        
-        k1 = l1[0]
-        m1 = l1[1]
-        k2 = l2[0]
-        m2 = l2[1]
-        
-        if k1 == 0 and k2 == 0: 
-            if self.p1.y == line.p1.y: return (range(-math.inf,math.inf), self.p1.y)
-            return (None, None)
+    def __repr__(self):
+        return f'(X: {self.x}, Y: {self.y})'
+    
+    def abs(self) -> float:
+        return math.sqrt(self.x**2 + self.y**2)
 
-        x = (m2 - m1)/(k1 - k2)
-        y = m1 + k1 * x 
-        return (x,y)
+    def dot_product(self, vector):
+        return self.x * vector.x + self.y * vector.y
+
+    def scalar_projection(self, vector):
+        length = self.abs() 
+        if length == 0: length = 1
+        return self.dot_product(vector) / length
+    
+    def vector_multiplication(self, coefficient:float):
+        return Vector(self.x*coefficient, self.y*coefficient)
+    
+    def get_orthogonal_vector(self):
+        return Vector(self.y, -self.x)
+    
+    def get_unit_vector(self):
+        length = self.abs() 
+        if length == 0: length = 1
+        return self.vector_multiplication(1/length)
+    
+    def to_point(self): return Point(self.x, self.y)
+        
+    def vector_projection(self, vector):
+        return self.vector_multiplication(self.scalar_projection(vector))
 
     
+class Object:
+    def __init__(self, pos:Point, theta:float, borders:list[Point] = [], velocity_vector:Vector = Vector(0,0)):
+        self.pos = pos
+        self.direction = theta
+        self.borders = borders
+        self.velocity_vector = velocity_vector.get_unit_vector()
         
-        
-        
+    def rotation_matrix(self, sign:int = 1) -> tuple[Vector]:
+        return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
     
+    def from_local_to_global(self) -> list[Point]:
+        borders = []
+        for local_point in self.borders:
+            rotation_matrix = self.rotation_matrix(-1)
         
+            x = rotation_matrix[0].dot_product(local_point) + self.pos.x
+            y = rotation_matrix[1].dot_product(local_point) + self.pos.y
+            
+            borders.append(Point(x, y))
+        return borders
+    
+    def from_globl_to_local(self, global_borders:list[Point]) -> list[Point]:
+        borders = []
+        for global_point in global_borders:
+            rotation_matrix = self.rotation_matrix()
+            x = rotation_matrix[0].dot_product(global_point) - rotation_matrix[0].dot_product(self.pos)
+            y = rotation_matrix[1].dot_product(global_point) - rotation_matrix[1].dot_product(self.pos)
+            borders.append(Point(x, y))
+        return borders
+    
+    def get_outer_points(self):
+        side_min_point = self.pos
+        side_max_point = self.pos
+        front_max_point = self.pos
+        side_min_dist = math.inf
+        side_max_dist = -math.inf
+        front_max_dist = -math.inf
+
+        for point in self.borders:
+            side_dist = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point)
+            front_dist = self.velocity_vector.get_unit_vector().dot_product(point)
+            
+            if side_dist>side_max_dist: 
+                side_max_point = point
+                side_max_dist = side_dist
+            if side_dist<side_min_dist: 
+                side_min_point = point
+                side_min_dist = side_dist
+            if front_dist>front_max_dist:
+                front_max_dist = front_dist
+                front_max_point = point
+        
+        return side_min_point, side_max_point, self.velocity_vector.vector_projection(front_max_point).to_point()
+    
+    def collision_course(self, obj) -> bool:
+        p1, p2, front_point = self.get_outer_points()
+        sign = 0
+        closest_distance = math.inf
+        collision = False
+        
+        for point in self.from_globl_to_local(obj.from_local_to_global()):
+            dist_from_vector_1 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point.get_moved_point(p1))
+            dist_from_vector_2 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point.get_moved_point(p2))
+ 
+            if dist_from_vector_1*dist_from_vector_2>0: 
+                if sign==0: sign = math.copysign(1,dist_from_vector_1)
+                if sign != math.copysign(1,dist_from_vector_1):
+                    if self.velocity_vector.dot_product(point) >= 0: collision = True
+                
+            if (dist_from_vector_1<=0 and dist_from_vector_2>=0): 
+                if self.velocity_vector.dot_product(point) >= 0: collision = True
+            
+            if collision:    
+                obj_collision_point = self.velocity_vector.vector_projection(point).to_point()
+                distance = obj_collision_point.distance_between_points(front_point)
+                if distance < closest_distance: closest_distance = distance
+                        
+        return collision, closest_distance
+        
+
+    
 class Bot:
     def __init__(self, id:int):
         self.id = id
@@ -102,37 +178,6 @@ class Bot:
                 
     def __repr__(self):
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
-
-class Area:
-    def __init__(self, lines:list[Line]): 
-        self.lines = lines
-        
-    def calc_angs(self):None
-        
-    def in_area(self, x:float, y:float):
-        None
-
-    
-    def heading_towards_area(self, bot:Bot):
-        point = bot.point
-        angles = []
-        
-        for line in self.lines:
-            angles.append(point.ang_to_point(line.p1.x, line.p1.y))
-            angles.append(point.ang_to_point(line.p2.x, line.p2.y))
-        
-        max_angle = max(angles)
-        min_angle = min(angles)
-        
-        theta = bot.theta % 2*math.pi
-
-        if max_angle - min_angle > math.pi:
-            theta = (theta + 2*math.pi) % 2*math.pi
-            min_angle = (min_angle + 2*math.pi) % 2*math.pi
-            max_angle = (max_angle + 2*math.pi) % 2*math.pi
-            
-        return min_angle <= theta <= max_angle, angles
-
 
 
 class Receiver:
