@@ -42,10 +42,10 @@ class Vector:
     def abs(self) -> float:
         return math.sqrt(self.x**2 + self.y**2)
 
-    def dot_product(self, vector):
+    def dot_product(self, vector) -> float:
         return self.x * vector.x + self.y * vector.y
 
-    def scalar_projection(self, vector):
+    def scalar_projection(self, vector) -> float:
         length = self.abs() 
         if length == 0: length = 1
         return self.dot_product(vector) / length
@@ -61,7 +61,8 @@ class Vector:
         if length == 0: length = 1
         return self.vector_multiplication(1/length)
     
-    def to_point(self): return Point(self.x, self.y)
+    def to_point(self) -> Point: 
+        return Point(self.x, self.y)
         
     def vector_projection(self, vector):
         return self.vector_multiplication(self.scalar_projection(vector))
@@ -81,10 +82,8 @@ class Object:
         borders = []
         for local_point in self.borders:
             rotation_matrix = self.rotation_matrix(-1)
-        
             x = rotation_matrix[0].dot_product(local_point) + self.pos.x
             y = rotation_matrix[1].dot_product(local_point) + self.pos.y
-            
             borders.append(Point(x, y))
         return borders
     
@@ -121,7 +120,7 @@ class Object:
         
         return side_min_point, side_max_point, self.velocity_vector.vector_projection(front_max_point).to_point()
     
-    def collision_course(self, obj) -> bool:
+    def collision_course(self, obj):
         p1, p2, front_point = self.get_outer_points()
         sign = 0
         closest_distance = math.inf
