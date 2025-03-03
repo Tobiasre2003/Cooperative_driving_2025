@@ -351,12 +351,22 @@ class Data:
             bots[id].last_update = time
         
 
-
+def heart_beat(status):
+    my_bot = bots[my_id]
+    if status == "HB": msg = str([my_id, "HB", [my_bot.point.x, my_bot.point.y, my_bot.absolute_speed, my_bot.acceleration]])
+    if status == "ENTER": msg = str([my_id, "ENTER", 0])
+    if status == "EXIT": msg = str([my_id, "EXIT", 0])
+    
+    for id in bots.keys():
+        if id == my_id: continue
+        send(ip[id], 2020, msg)
+    
         
 
 if __name__ == '__main__': 
     try:
-        
+        last_time_step = rospy.get_time()
+        time_step = 1
         d = Data()
         s = Speed()
         
@@ -376,13 +386,13 @@ if __name__ == '__main__':
         t.start()
         s.setSpeed(0)
         while not rospy.is_shutdown():
-            if not d.adress is None: 
-                print(d.to_list(), d.adress[0])
-                send(d.adress[0], 2020, d.data)
-                exit()
-    
-            if bots[my_id].absolute_speed != 0:
-                print(bots[my_id].absolute_speed,bots[my_id].right_speed,bots[my_id].left_speed)
+            
+            if rospy.get_time() > last_time_step + time_step:
+                last_time_step = rospy.get_time()
+                heart_beat()
+            
+            
+            
                 
     except KeyboardInterrupt:
         run_flag.clear()
