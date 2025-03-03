@@ -82,22 +82,34 @@ class Object:
     def rotation_matrix(self, sign:int = 1) -> tuple[Vector]:
         return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
     
+    def get_global_velocity_vector(self):
+        rotation_matrix = self.rotation_matrix(-1)
+        x = rotation_matrix[0].dot_product(self.velocity_vector)
+        y = rotation_matrix[1].dot_product(self.velocity_vector)
+        return Vector(x, y).get_unit_vector()
+    
+    def point_from_local_to_global(self, local_point:Point) -> Point:
+        rotation_matrix = self.rotation_matrix(-1)
+        x = rotation_matrix[0].dot_product(local_point) + self.pos.x
+        y = rotation_matrix[1].dot_product(local_point) + self.pos.y
+        return Point(x, y)
+    
     def from_local_to_global(self) -> list[Point]:
         borders = []
         for local_point in self.borders:
-            rotation_matrix = self.rotation_matrix(-1)
-            x = rotation_matrix[0].dot_product(local_point) + self.pos.x
-            y = rotation_matrix[1].dot_product(local_point) + self.pos.y
-            borders.append(Point(x, y))
+            borders.append(self.point_from_local_to_global(local_point))
         return borders
+    
+    def point_from_globl_to_local(self, global_point:Point) -> Point:
+        rotation_matrix = self.rotation_matrix()
+        x = rotation_matrix[0].dot_product(global_point) - rotation_matrix[0].dot_product(self.pos)
+        y = rotation_matrix[1].dot_product(global_point) - rotation_matrix[1].dot_product(self.pos)
+        return Point(x, y)
     
     def from_globl_to_local(self, global_borders:list[Point]) -> list[Point]:
         borders = []
         for global_point in global_borders:
-            rotation_matrix = self.rotation_matrix()
-            x = rotation_matrix[0].dot_product(global_point) - rotation_matrix[0].dot_product(self.pos)
-            y = rotation_matrix[1].dot_product(global_point) - rotation_matrix[1].dot_product(self.pos)
-            borders.append(Point(x, y))
+            borders.append(self.point_from_globl_to_local(global_point))
         return borders
     
     def get_outer_points(self):
@@ -148,7 +160,30 @@ class Object:
                 if distance < closest_distance: closest_distance = distance
                         
         return collision, closest_distance
+    
+    def crossing_vector(self, self_point:Point, obj_point:Point, self_vel:Vector, obj_vel:Vector):
+        try:
+            self_dist = (obj_point.y-self_point.y+obj_vel.y*((self_point.x-obj_point.x)/obj_vel.x))/(self_vel.y-(obj_vel.y*self_vel.x)/obj_vel.x)
+            return self_vel.vector_multiplication(self_dist).to_point().get_moved_point(self_point) 
+        except ZeroDivisionError:
+            return False
+     
+    def moving_collision_course(self, obj):
+        self_p1, self_p2,_ = self.get_outer_points()
+        obj_p1, obj_p2,_ = obj.get_outer_points()
         
+        self_p1 = self.point_from_local_to_global(self_p1)
+        self_p2 = self.point_from_local_to_global(self_p2)
+        obj_p1 = obj.point_from_local_to_global(obj_p1)
+        obj_p2 = obj.point_from_local_to_global(obj_p2)
+        
+        self_vel = self.get_global_velocity_vector()
+        obj_vel = obj.get_global_velocity_vector()
+    
+        return self.crossing_vector(self_p1, obj_p2, self_vel, obj_vel), self.crossing_vector(self_p2, obj_p1, self_vel, obj_vel)
+        
+
+     
 
     
 class Bot:
