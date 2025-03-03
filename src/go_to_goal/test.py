@@ -364,7 +364,7 @@ def heart_beat(status):
         if id == my_id: continue
         send(ip[id], 2020, msg)
     
-def check_last_update(id):
+def loss_of_signal(id):
     return rospy.get_time() - bots[id].last_update > time_step + 1
         
 
