@@ -12,6 +12,8 @@ from std_msgs.msg import Header
 import math
 
 
+rospy.init_node('test', anonymous=True)
+rospy.loginfo("Starting test node")
 
 class Point:
     def __init__(self,x:float, y:float):
@@ -70,7 +72,7 @@ class Vector:
 
     
 class Object:
-    def __init__(self, pos:Point, theta:float, borders:list[Point] = [], velocity_vector:Vector = Vector(0,0)):
+    def __init__(self, pos:Point, theta:float, borders:list = [], velocity_vector:Vector = Vector(0,0)):
         self.pos = pos
         self.direction = theta
         self.borders = borders
@@ -80,7 +82,7 @@ class Object:
         self.pos = pos
         self.direction = theta
         
-    def rotation_matrix(self, sign:int = 1) -> tuple[Vector]:
+    def rotation_matrix(self, sign:int = 1) -> tuple:
         return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
     
     def get_global_velocity_vector(self):
@@ -95,7 +97,7 @@ class Object:
         y = rotation_matrix[1].dot_product(local_point) + self.pos.y
         return Point(x, y)
     
-    def from_local_to_global(self) -> list[Point]:
+    def from_local_to_global(self) -> list:
         borders = []
         for local_point in self.borders:
             borders.append(self.point_from_local_to_global(local_point))
@@ -107,7 +109,7 @@ class Object:
         y = rotation_matrix[1].dot_product(global_point) - rotation_matrix[1].dot_product(self.pos)
         return Point(x, y)
     
-    def from_globl_to_local(self, global_borders:list[Point]) -> list[Point]:
+    def from_globl_to_local(self, global_borders:list) -> list:
         borders = []
         for global_point in global_borders:
             borders.append(self.point_from_globl_to_local(global_point))
@@ -197,8 +199,8 @@ class Bot:
         self.right_speed = 0
         self.absolute_speed = 0
         self.last_speed_update = None
-        self.point = None
-        self.theta = None
+        self.point = Point(0,0)
+        self.theta = 0
         
         self.last_update = rospy.get_time()
         self.enter = False
@@ -210,7 +212,7 @@ class Bot:
         
         self.acceleration = 0
         
-        self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], (0,1))
+        self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
 
     def update_pos(self, point, theta):
         self.point = point
@@ -326,6 +328,7 @@ class Data:
     
     def update(self):
         data_list = self.to_list()
+        print(data_list)
         id = data_list[0]
         msg_type = data_list[1]
         time = rospy.get_time()
@@ -361,24 +364,26 @@ def heart_beat(status):
         if id == my_id: continue
         send(ip[id], 2020, msg)
     
+def check_last_update(id):
+    return rospy.get_time() - bots[id].last_update > time_step + 1
         
 
 if __name__ == '__main__': 
+    run_flag = threading.Event()
+    run_flag.set()
+    t = None
     try:
-        last_time_step = rospy.get_time()
+        
         time_step = 1
         d = Data()
         s = Speed()
         
-        run_flag = threading.Event()
-        run_flag.set()
         my_id = int(sys.argv[1])
         bots = {my_id:Bot(my_id)}
         
         ip = {4:'192.168.50.102',5:'192.168.50.103'}
         
-        rospy.init_node('test', anonymous=True)
-        rospy.loginfo("Starting test node")
+        last_time_step = rospy.get_time()
         
         node = Receiver()
         
@@ -389,17 +394,14 @@ if __name__ == '__main__':
             
             if rospy.get_time() > last_time_step + time_step:
                 last_time_step = rospy.get_time()
-                heart_beat()
-            
-            
-            
+                heart_beat("HB")
                 
     except KeyboardInterrupt:
         run_flag.clear()
-        t.join()
+        if not t is None: t.join()
     finally:
         run_flag.clear()
-        t.join()
+        if not t is None: t.join()
         
 
             
