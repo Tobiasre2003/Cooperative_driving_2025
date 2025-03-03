@@ -25,6 +25,7 @@ class Point:
         return f'(X: {self.x}, Y: {self.y})'
     
     def distance_between_points(self, point) -> float:
+        if point == None: return None
         return math.sqrt((self.x-point.x)**2 + (self.y-point.y)**2)
     
     def get_moved_point(self, point):
@@ -169,8 +170,8 @@ class Object:
             return False
      
     def moving_collision_course(self, obj):
-        self_p1, self_p2,_ = self.get_outer_points()
-        obj_p1, obj_p2,_ = obj.get_outer_points()
+        self_p1, self_p2, front_point = self.get_outer_points()
+        obj_p1, obj_p2, _ = obj.get_outer_points()
         
         self_p1 = self.point_from_local_to_global(self_p1)
         self_p2 = self.point_from_local_to_global(self_p2)
@@ -180,7 +181,10 @@ class Object:
         self_vel = self.get_global_velocity_vector()
         obj_vel = obj.get_global_velocity_vector()
     
-        return self.crossing_vector(self_p1, obj_p2, self_vel, obj_vel), self.crossing_vector(self_p2, obj_p1, self_vel, obj_vel)
+        crossing_point_1 = self.crossing_vector(self_p1, obj_p2, self_vel, obj_vel)
+        crossing_point_2 = self.crossing_vector(self_p2, obj_p1, self_vel, obj_vel)
+        
+        return crossing_point_1, front_point.distance_between_points(crossing_point_1), crossing_point_2, front_point.distance_between_points(crossing_point_2)
         
 
      
