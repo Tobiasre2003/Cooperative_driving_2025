@@ -228,7 +228,10 @@ class Bot:
                 
     def __repr__(self):
         return f'(Id: {self.id}, Left speed: {self.left_speed}, Right speed: {self.right_speed}, Absolute speed: {self.absolute_speed}, Point: {self.point})'
-
+    
+    def loss_of_signal(self):
+        return rospy.get_time() - self.last_update > time_step + 1
+        
 
 class Receiver:
     def __init__(self):
@@ -352,7 +355,8 @@ class Data:
             bots[id].absolute_speed = state[2]
             bots[id].acceleration = state[3]
             bots[id].last_update = time
-        
+            
+
 
 def heart_beat(status):
     my_bot = bots[my_id]
@@ -364,10 +368,7 @@ def heart_beat(status):
         if id == my_id: continue
         send(ip[id], 2020, msg)
     
-def loss_of_signal(id):
-    return rospy.get_time() - bots[id].last_update > time_step + 1
         
-
 if __name__ == '__main__': 
     run_flag = threading.Event()
     run_flag.set()
