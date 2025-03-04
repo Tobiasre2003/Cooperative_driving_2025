@@ -9,8 +9,9 @@ import threading
 import select
 from gv_client.msg import LaptopSpeed
 from std_msgs.msg import Header
+from geometry_msgs.msg import Polygon, Point32
 import math
-
+ 
 
 rospy.init_node('test', anonymous=True)
 rospy.loginfo("Starting test node")
@@ -189,7 +190,8 @@ class Object:
         return crossing_point_1, front_point.distance_between_points(crossing_point_1), crossing_point_2, front_point.distance_between_points(crossing_point_2)
         
 
-     
+
+        
 
     
 class Bot:
@@ -214,6 +216,8 @@ class Bot:
         
         self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
 
+        self.path = []
+
     def update_pos(self, point, theta):
         self.point = point
         self.theta = theta
@@ -231,12 +235,49 @@ class Bot:
     
     def loss_of_signal(self):
         return rospy.get_time() - self.last_update > time_step + 1
-        
 
+class Intersection_section:
+    def __init__(self, p1:Point, p2:Point, n, theta):
+        dx = abs(p2.x-p1.x)
+        dy = abs(p2.y-p1.y)
+        self.center_point = p1.get_moved_point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
+        self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
+        self.claimed = False
+        self.entry_path = []
+        
+    def dist_to_entry(self, pos:Point):
+        dist = 0
+        if len(self.entry_path) == 0: return 0
+        start_point = self.entry_path[0]
+        for point in self.entry_path:
+            dist += start_point.distance_between_points(point)
+            start_point = point
+        return dist
+
+    def claim(self):
+        if not self.claimed: 
+            self.claimed = True
+            return True
+        return False     
+    
+    def release(self):
+        if self.claimed: 
+            self.claimed = False
+            return True
+        return False      
+
+class Intersection:
+    def __init__(self, p1:Point, p2:Point, theta = 0):
+
+        None
+
+
+    
 class Receiver:
     def __init__(self):
         rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
         rospy.Subscriber('status', Status, self.status)
+        rospy.Subscriber('path', Polygon, self.path)
         
     def positions(self, position_msg):
         id = position_msg.tagId
@@ -254,6 +295,14 @@ class Receiver:
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
         bots[my_id].add_speed((bots[my_id].left_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
+
+    def path(self, path_msg):
+        path = []
+        for point in path_msg.points:
+            path.append(Point(point.x,point.y))
+        bots[my_id].path = path
+
+        
 
 def listen(run_flag, adress, port, d):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -393,6 +442,7 @@ if __name__ == '__main__':
         s.setSpeed(0)
         while not rospy.is_shutdown():
             
+            print(bots[my_id].path)
             if rospy.get_time() > last_time_step + time_step:
                 last_time_step = rospy.get_time()
                 heart_beat("HB")

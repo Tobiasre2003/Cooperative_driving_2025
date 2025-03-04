@@ -13,8 +13,9 @@ import csv
 import rospy
 import sys
 import random
-from geometry_msgs.msg import Twist, Point
+from geometry_msgs.msg import Twist, Point, Polygon, Point32
 from gv_client.msg import GulliViewPosition, LaptopSpeed
+
 
 from roswifibot.msg import IR
 
@@ -146,6 +147,7 @@ class GoToGoalNode:
 
 
         self.publisher = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+        self.path_publisher = rospy.Publisher('path', Polygon, queue_size=3)
 
         self.speed = SPEED
         self.omega = 0
@@ -164,6 +166,8 @@ class GoToGoalNode:
         self.end_angles = []
 
         self.rate = rospy.Rate(10)
+        
+        self.pub_path(PATH)
 
     # Update speed every time speed msg is recieved
     def _speed_cb(self, speed_msg):
@@ -184,6 +188,13 @@ class GoToGoalNode:
             self.speed = speed_msg.speed
 
     # Update omega every time a GulliViewPosition msg is received
+    
+    def pub_path(self, PATH):
+        path = Polygon()
+        path.points = []
+        for point in PATH:
+            path.points.append(Point32(x=point.x, y=point.y, z=0.0))
+        self.path_publisher.publish(path)
 
     def _position_cb(self, position_msg):
         print("POS IN") # DEBUG
@@ -195,6 +206,7 @@ class GoToGoalNode:
         if ((self.dest.x + ERROR_RANGE) > self.x > (self.dest.x - ERROR_RANGE)
                 and (self.dest.y + ERROR_RANGE) > self.y > (self.dest.y - ERROR_RANGE)):
             self.i += 1
+            self.pub_path(PATH[self.i:])
             print("REACHED POINT", self.i)
             if self.i < len(PATH):
                 self.dest = PATH[self.i]
@@ -408,6 +420,7 @@ if __name__ == '__main__':
     PATH = PATHS[sys.argv[1]]
     LOOP_PATH = LOOP_PATHS[sys.argv[1]]
     node = GoToGoalNode()
+    node.pub_path([Point(0,0,0),Point(1,1,1)])
     rospy.on_shutdown(node.shutdown)
     while not rospy.is_shutdown():
         #if (node.i < len(PATH)):
