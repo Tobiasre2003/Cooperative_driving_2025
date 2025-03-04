@@ -254,11 +254,25 @@ class Intersection_section:
         self.center_point = p1.get_moved_point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
         self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
         self.claimed = False
-        
+    
+    """
+     
     def get_entry_point(self, bot:Bot):
+        outside = None
+        inside = None
+        for point in bot.path:
+            if self.obj.global_point_in_object(point): 
+                inside = point
+                break
+            else: 
+                outside = point
+        if outside == None or inside == None: return False
+        entry_vector = Vector(inside.x-outside.x,inside.y-outside.y)
         
-        None
+        for point in self.obj.borders:
+            
 
+    """  
 
     def claim(self):
         if not self.claimed: 
