@@ -27,12 +27,22 @@ class Point:
     def __repr__(self):
         return f'(X: {self.x}, Y: {self.y})'
     
+    def __add__(self, point):
+        try: return Point(self.x+point.x, self.y+point.y)
+        except: return Point(self.x+point, self.y+point)
+    
+    def __sub__(self, point):
+        try: return Point(self.x-point.x, self.y-point.y)
+        except: return Point(self.x-point, self.y-point)
+    
+    def __mul__(self, point):
+        try: return Point(self.x*point.x, self.y*point.y)
+        except: return Point(self.x*point, self.y*point)
+    
     def distance_between_points(self, point) -> float:
         if point == None: return None
         return math.sqrt((self.x-point.x)**2 + (self.y-point.y)**2)
     
-    def get_moved_point(self, point):
-        return Point(self.x+point.x, self.y+point.y)
     
 
 class Vector:
@@ -42,7 +52,19 @@ class Vector:
     
     def __repr__(self):
         return f'(X: {self.x}, Y: {self.y})'
+
+    def __add__(self, vector):
+        try: return Vector(self.x+vector.x, self.y+vector.y)
+        except: return Vector(self.x+vector, self.y+vector)
     
+    def __sub__(self, vector):
+        try: return Vector(self.x-vector.x, self.y-vector.y)
+        except: return Vector(self.x-vector, self.y-vector)
+    
+    def __mul__(self, vector):
+        try: return Vector(self.x*vector.x, self.y*vector.y)
+        except: return Vector(self.x*vector, self.y*vector)
+
     def abs(self) -> float:
         return math.sqrt(self.x**2 + self.y**2)
 
@@ -54,22 +76,19 @@ class Vector:
         if length == 0: length = 1
         return self.dot_product(vector) / length
     
-    def vector_multiplication(self, coefficient:float):
-        return Vector(self.x*coefficient, self.y*coefficient)
-    
     def get_orthogonal_vector(self):
         return Vector(self.y, -self.x)
     
     def get_unit_vector(self):
         length = self.abs() 
         if length == 0: length = 1
-        return self.vector_multiplication(1/length)
+        return self*(1/length)
     
     def to_point(self) -> Point: 
         return Point(self.x, self.y)
         
     def vector_projection(self, vector):
-        return self.vector_multiplication(self.scalar_projection(vector))
+        return self*self.scalar_projection(vector)
 
     
 class Object:
@@ -147,8 +166,8 @@ class Object:
         collision = False
         
         for point in self.from_globl_to_local(obj.from_local_to_global()):
-            dist_from_vector_1 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point.get_moved_point(p1))
-            dist_from_vector_2 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point.get_moved_point(p2))
+            dist_from_vector_1 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p1)
+            dist_from_vector_2 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p2)
  
             if dist_from_vector_1*dist_from_vector_2>0: 
                 if sign==0: sign = math.copysign(1,dist_from_vector_1)
@@ -167,8 +186,12 @@ class Object:
     
     def crossing_vector(self, self_point:Point, obj_point:Point, self_vel:Vector, obj_vel:Vector):
         try:
-            self_dist = (obj_point.y-self_point.y+obj_vel.y*((self_point.x-obj_point.x)/obj_vel.x))/(self_vel.y-(obj_vel.y*self_vel.x)/obj_vel.x)
-            return self_vel.vector_multiplication(self_dist).to_point().get_moved_point(self_point) 
+            if not obj_vel.x == 0:
+                self_dist = (obj_point.y-self_point.y+obj_vel.y*((self_point.x-obj_point.x)/obj_vel.x))/(self_vel.y-(obj_vel.y*self_vel.x)/obj_vel.x)
+                return (self_vel*self_dist).to_point() + self_point 
+            elif not self_vel.x == 0:
+                self_dist = (self_point.y-obj_point.y+self_vel.y*((obj_point.x-self_point.x)/self_vel.x))/(obj_vel.y-(self_vel.y*obj_vel.x)/self_vel.x)
+                return (obj_vel*self_dist).to_point() + obj_point 
         except ZeroDivisionError:
             return False
      
@@ -194,11 +217,11 @@ class Object:
         prev_point = self.borders[-1]
         sign = 0
         for point in self.borders:
-            lp = local_point.get_moved_point(Point(-prev_point.x,-prev_point.y))
+            lp = local_point - prev_point 
             vector = Vector(point.x-prev_point.x, point.y-prev_point.y).get_orthogonal_vector()
             dist = vector.scalar_projection(lp)
             prev_point = point
-            #print(math.copysign(1, dist), vector)
+
             if sign == 0: sign = math.copysign(1, dist)
             elif not sign == math.copysign(1, dist): return False
         return True and not sign == 0
@@ -254,9 +277,7 @@ class Intersection_section:
         self.center_point = p1.get_moved_point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
         self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
         self.claimed = False
-    
-    """
-     
+
     def get_entry_point(self, bot:Bot):
         outside = None
         inside = None
@@ -268,12 +289,22 @@ class Intersection_section:
                 outside = point
         if outside == None or inside == None: return False
         entry_vector = Vector(inside.x-outside.x,inside.y-outside.y)
-        
-        for point in self.obj.borders:
+     
+        borders = self.obj.from_local_to_global()
+        prev_point = borders[-1]
+        entry_point = None
+        distance = math.inf
+        for point in borders:
+            vector = Vector(point.x-prev_point.x, point.y-prev_point.y).get_orthogonal_vector()
+            p = self.obj.crossing_vector(outside,prev_point,entry_vector,vector)
+            if not p == False:
+                dist = p.distance_between_points(outside)
+                if dist<distance:
+                    distance = dist
+                    entry_point = p
+            prev_point = point
+        return entry_point
             
-
-    """  
-
     def claim(self):
         if not self.claimed: 
             self.claimed = True
