@@ -189,8 +189,19 @@ class Object:
         
         return crossing_point_1, front_point.distance_between_points(crossing_point_1), crossing_point_2, front_point.distance_between_points(crossing_point_2)
         
-
-
+    def global_point_in_object(self, global_point:Point):
+        local_point = self.point_from_globl_to_local(global_point)
+        prev_point = self.borders[-1]
+        sign = 0
+        for point in self.borders:
+            lp = local_point.get_moved_point(Point(-prev_point.x,-prev_point.y))
+            vector = Vector(point.x-prev_point.x, point.y-prev_point.y).get_orthogonal_vector()
+            dist = vector.scalar_projection(lp)
+            prev_point = point
+            #print(math.copysign(1, dist), vector)
+            if sign == 0: sign = math.copysign(1, dist)
+            elif not sign == math.copysign(1, dist): return False
+        return True and not sign == 0
         
 
     
@@ -243,16 +254,11 @@ class Intersection_section:
         self.center_point = p1.get_moved_point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
         self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
         self.claimed = False
-        self.entry_path = []
         
-    def dist_to_entry(self, pos:Point):
-        dist = 0
-        if len(self.entry_path) == 0: return 0
-        start_point = self.entry_path[0]
-        for point in self.entry_path:
-            dist += start_point.distance_between_points(point)
-            start_point = point
-        return dist
+    def get_entry_point(self, bot:Bot):
+        
+        None
+
 
     def claim(self):
         if not self.claimed: 

@@ -166,8 +166,6 @@ class GoToGoalNode:
         self.end_angles = []
 
         self.rate = rospy.Rate(10)
-        
-        self.pub_path(PATH)
 
     # Update speed every time speed msg is recieved
     def _speed_cb(self, speed_msg):
@@ -420,10 +418,11 @@ if __name__ == '__main__':
     PATH = PATHS[sys.argv[1]]
     LOOP_PATH = LOOP_PATHS[sys.argv[1]]
     node = GoToGoalNode()
-    node.pub_path([Point(0,0,0),Point(1,1,1)])
+    
     rospy.on_shutdown(node.shutdown)
     while not rospy.is_shutdown():
         #if (node.i < len(PATH)):
+        node.pub_path(PATH[node.i:])
         if node.omega == 0:
             print("=== LOST CONTACT WITH GULLIVIEW! ===")
         if (set_delay):
