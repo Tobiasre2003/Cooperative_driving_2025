@@ -258,6 +258,7 @@ class Bot:
         self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
 
         self.path = []
+        self.claimed_intersection_parts = []
 
     def update_pos(self, point, theta):
         self.point = point
@@ -282,11 +283,13 @@ class Bot:
             self.intersection_dist_lists = intersection.get_entry_dist_list()
             self.intersection_dist_list = self.intersection_dist_lists[0][1]
             self.init_path_len = self.intersection_dist_lists[0][2]
+            self.intersection_sections = [sublist[3] for sublist in self.intersection_dist_lists]
         except: 
             return False
         
-    def update_mti(self, intersection):
+    def update_intersection_time(self, intersection):
         self.mti = intersection.mean_time_to_intersection(self)
+        self.time_in_intersection = intersection.get_exit_dist(self)/self.absolute_speed + 3
         
         
 
@@ -345,11 +348,11 @@ class Intersection_section:
         return False      
 
 class Intersection:
-    def __init__(self, p1:Point, p2:Point, range:float, theta = 0):
-        self.range = range
+    def __init__(self, p1:Point, p2:Point, bot_range:float, theta = 0):
+        self.range = bot_range
         self.p1 = p1
         self.p2 = p2
-        self.parts = [Intersection_section(p1,p2,n,theta) for n in range(5)]
+        self.parts = [Intersection_section(p1,p2,n,theta) for n in range(4)]
         
     def get_entry_dist_list(self, bot:Bot):
         path_len = len(bot.path)
@@ -359,13 +362,19 @@ class Intersection:
             if not dist == None:
                 entry_list.append((dist, dist_list, path_len, part.n))
                 entry_list.sort()
-        return entry_list 
+        return entry_list
+    
+    def get_exit_dist(self, bot:Bot):
+        qp = (self.p2-self.p1)*0.5
+        len(bot.intersection_sections)*max(qp.x,qp.y)
     
     def in_range(self, bot:Bot):
         pm = self.p2 - self.p1
         return pm.distance_between_points(bot.point)<=self.range
 
-    def claim_parts(self, parts:list):
+    def claim_parts(self, bot:Bot):#parts:list):
+        parts = bot.intersection_sections
+        
         for n in parts:
             if self.parts[n].claimed: return False
         for n in parts:
@@ -393,6 +402,12 @@ class Intersection:
             mti = None
         return mti
     
+    def bots_in_range(self):
+        bot_list = []
+        for bot in bots.values():
+            if self.in_range(bot): 
+                bot_list.append(bot)
+        return bot_list
     
 class Receiver:
     def __init__(self):
@@ -415,7 +430,7 @@ class Receiver:
     def status(self, status_msg):
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
-        bots[my_id].add_speed((bots[my_id].left_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
+        bots[my_id].add_speed((bots[my_id].right_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
 
     def path(self, path_msg):
         path = []
@@ -507,26 +522,24 @@ class Data:
         
         if msg_type == "ENTER" : 
             bots[id].enter = True
-            #bots[id].current_lane = data_list[2]
-            #bots[id].next_lane = data_list[3]
-            bots[id].mean_time_to_intersection = data_list[4]
+            bots[id].intersection_sections = data_list[2]
             bots[id].last_update = time
         
         elif msg_type == "EXIT" : 
             bots[id].enter = False
-            #bots[id].next_lane = data_list[2]
             bots[id].last_update = time
         
         elif msg_type == "HB" : 
-            bots[id].mti = data_list[2]
+            bots[id].mti = data_list[2][0]
+            bots[id].time_in_intersection = data_list[2][1]
             bots[id].last_update = time
 
 
 def heart_beat(status):
     my_bot = bots[my_id]
-    if status == "HB": msg = str([my_id, "HB", my_bot.mti])
-    if status == "ENTER": msg = str([my_id, "ENTER", 0])
-    if status == "EXIT": msg = str([my_id, "EXIT", 0])
+    if status == "HB": msg = str([my_id, "HB", my_bot.mti, my_bot.time_in_intersection])
+    if status == "ENTER": msg = str([my_id, "ENTER", my_bot.intersection_sections])
+    if status == "EXIT": msg = str([my_id, "EXIT"])
     
     for id in bots.keys():
         if id == my_id: continue
@@ -537,37 +550,77 @@ def con1(intersection:Intersection):
     intersection.init_intersection(bots[my_id])
     return not bots[my_id].intersection_dist_lists == []
 
-def heart_beat_con():
+def heart_beat_con(intersection:Intersection) -> bool:
     con = True
-    for bot in bots:
+    for bot in bots.values():
         if bot.id == my_id: continue
+        if not intersection.in_range(bot): continue
         con = con and bot.loss_of_signal()
     return con
 
+def wait_for_path(bot:Bot):
+    if len(bot.path) > 0: return
+    s.setSpeed(0)
+    while True: 
+        if len(bot.path) > 0: return
+        
+def get_priority_bot(intersection:Intersection):
+    bot_list = intersection.bots_in_range()
+    priority_bot_list = []
+    for bot in bot_list:
+        bot.update_mti()
+        priority_bot_list.append((bot.mti, bot))
+    return priority_bot_list.sort()
+    
+def intersection_ctrl(intersection:Intersection):
+    
+    if heart_beat_con(intersection):
+        if con1(intersection):
+            heart_beat("ENTER")
+            priority_list = get_priority_bot(intersection)
+            for mti, bot in priority_list:
+                if intersection.claim_parts(bot.intersection_sections):
+                    s.setSpeed(0)
+                else:
+                    time_to_clear = priority_list[0][1].time_in_intersection
+                    dist = intersection.dist_to_intersection(bot)
+                    new_vel = dist / time_to_clear
+                    s.setSpeed(new_vel)
+                    
+            
+            
+            if len(priority_list)>=2 and priority_list[1][0] - priority_list[0][0] > time_step:
+                if priority_list[0].id == my_id:
+                    s.setSpeed(0)
+                    
 
+    else:
+        s.setSpeed(0)
+        
 
 if __name__ == '__main__': 
     run_flag = threading.Event()
     run_flag.set()
     t = None
     try:
-        
         time_step = 1
+        last_time_step = rospy.get_time()
+        
         d = Data()
         s = Speed()
         
         my_id = int(sys.argv[1])
+        operation = sys.argv[2]
         bots = {my_id:Bot(my_id)}
-        
         ip = {4:'192.168.50.102',5:'192.168.50.103'}
-        
-        last_time_step = rospy.get_time()
         
         node = Receiver()
         
         t = threading.Thread(target=listen, args=(run_flag, ip[my_id], 2020, d))
         t.start()
-        s.setSpeed(0)
+        
+        wait_for_path(bots[my_id])
+        
         while not rospy.is_shutdown():
             
             print(bots[my_id].path)
