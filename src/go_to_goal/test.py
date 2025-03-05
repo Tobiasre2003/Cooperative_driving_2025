@@ -278,14 +278,18 @@ class Intersection_section:
         self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
         self.claimed = False
 
-    def get_entry_point(self, bot:Bot):
+    def get_entry_point_dist(self, bot:Bot):
         outside = None
         inside = None
+        tot_dist = 0
         for point in bot.path:
             if self.obj.global_point_in_object(point): 
                 inside = point
                 break
             else: 
+                if outside == None:
+                    tot_dist += bot.point.distance_between_points(point)
+                tot_dist += outside.distance_between_points(point)
                 outside = point
         if outside == None or inside == None: return False
         entry_vector = Vector(inside.x-outside.x,inside.y-outside.y)
@@ -303,7 +307,8 @@ class Intersection_section:
                     distance = dist
                     entry_point = p
             prev_point = point
-        return entry_point
+            tot_dist += outside.distance_between_points(entry_point)
+        return tot_dist
             
     def claim(self):
         if not self.claimed: 
