@@ -274,6 +274,7 @@ class Intersection_section:
     def __init__(self, p1:Point, p2:Point, n, theta):
         dx = abs(p2.x-p1.x)
         dy = abs(p2.y-p1.y)
+        self.n = n
         self.center_point = p1.get_moved_point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
         self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
         self.claimed = False
@@ -291,9 +292,8 @@ class Intersection_section:
                     tot_dist += bot.point.distance_between_points(point)
                 tot_dist += outside.distance_between_points(point)
                 outside = point
-        if outside == None or inside == None: return False
+        if outside == None or inside == None: return False, None
         entry_vector = Vector(inside.x-outside.x,inside.y-outside.y)
-     
         borders = self.obj.from_local_to_global()
         prev_point = borders[-1]
         entry_point = None
@@ -308,7 +308,8 @@ class Intersection_section:
                     entry_point = p
             prev_point = point
             tot_dist += outside.distance_between_points(entry_point)
-        return tot_dist
+            
+        return entry_point, tot_dist
             
     def claim(self):
         if not self.claimed: 
@@ -323,11 +324,31 @@ class Intersection_section:
         return False      
 
 class Intersection:
-    def __init__(self, p1:Point, p2:Point, theta = 0):
+    def __init__(self, p1:Point, p2:Point, range:float, theta = 0):
+        self.range = range
+        self.p1 = p1
+        self.p2 = p2
+        self.parts = [Intersection_section(p1,p2,n,theta) for n in range(5)]
+        
+    def get_entry_points(self, bot:Bot):
+        entry_list = []
+        for part in self.parts:
+            point, dist = part.get_entry_point_dist(bot)
+            if not point == None:
+                entry_list.append((dist, point, part.n))
+                entry_list.sort()
+        return entry_list
+    
+    def in_range(self, bot:Bot):
+        pm = self.p2 - self.p1
+        return pm.distance_between_points(bot.point)<=self.range
 
-        None
-
-
+    def claim_parts(self, parts:list):
+        for n in parts:
+            if self.parts[n].claimed: return False
+        for n in parts:
+            self.parts[n].claim()
+        return True
     
 class Receiver:
     def __init__(self):
@@ -436,21 +457,20 @@ class Data:
     
     def update(self):
         data_list = self.to_list()
-        print(data_list)
         id = data_list[0]
         msg_type = data_list[1]
         time = rospy.get_time()
         
         if msg_type == "ENTER" : 
             bots[id].enter = True
-            bots[id].current_lane = data_list[2]
-            bots[id].next_lane = data_list[3]
+            #bots[id].current_lane = data_list[2]
+            #bots[id].next_lane = data_list[3]
             bots[id].mean_time_to_intersection = data_list[4]
             bots[id].last_update = time
         
         elif msg_type == "EXIT" : 
             bots[id].enter = False
-            bots[id].next_lane = data_list[2]
+            #bots[id].next_lane = data_list[2]
             bots[id].last_update = time
         
         elif msg_type == "HB" : 
