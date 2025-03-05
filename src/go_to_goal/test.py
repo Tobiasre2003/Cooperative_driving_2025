@@ -43,7 +43,16 @@ class Point:
         if point == None: return None
         return math.sqrt((self.x-point.x)**2 + (self.y-point.y)**2)
     
-    
+    def distance_between_points_in_list(self, list:list):
+        try:
+            prev_point = self
+            tot_dist = 0
+            for point in list:
+                tot_dist += prev_point.distance_between_points(point)
+                prev_point = point
+            return tot_dist
+        except: 
+            return None
 
 class Vector:
     def __init__(self,x:float, y:float):
@@ -240,9 +249,7 @@ class Bot:
         
         self.last_update = rospy.get_time()
         self.enter = False
-        
-        self.current_lane = ""
-        self.next_lane = ""
+    
         
         self.mean_time_to_intersection = None
         
@@ -269,6 +276,19 @@ class Bot:
     
     def loss_of_signal(self):
         return rospy.get_time() - self.last_update > time_step + 1
+    
+    def init_intersection(self, intersection):
+        try:
+            self.intersection_dist_lists = intersection.get_entry_dist_list()
+            self.intersection_dist_list = self.intersection_dist_lists[0][1]
+            self.init_path_len = self.intersection_dist_lists[0][2]
+        except: 
+            return False
+        
+    def update_mti(self, intersection):
+        self.mti = intersection.mean_time_to_intersection(self)
+        
+        
 
 class Intersection_section:
     def __init__(self, p1:Point, p2:Point, n, theta):
@@ -339,7 +359,7 @@ class Intersection:
             if not dist == None:
                 entry_list.append((dist, dist_list, path_len, part.n))
                 entry_list.sort()
-        return entry_list
+        return entry_list 
     
     def in_range(self, bot:Bot):
         pm = self.p2 - self.p1
@@ -353,9 +373,26 @@ class Intersection:
         return True
     
     def dist_to_intersection(self, bot:Bot):
+        try:
+            bot.intersection_dist_list
+            dist_list = bot.intersection_dist_list[int(len(bot.init_path_len)-len(bot.path)):]
+            return bot.point.distance_between_points_in_list(dist_list)
+        except: 
+            return None
         
-        
-        None
+    def mean_time_to_intersection(self, bot:Bot):
+        dist = self.dist_to_intersection(bot)/1000
+        if dist == None: return None
+        speed = bot.absolute_speed
+        acc = bot.acceleration
+        if not acc==0:
+            mti = (-speed + math.sqrt(speed**2 + 2*acc*dist))/acc
+        elif not speed == 0:
+            mti = dist/speed
+        else:
+            mti = None
+        return mti
+    
     
 class Receiver:
     def __init__(self):
@@ -481,18 +518,13 @@ class Data:
             bots[id].last_update = time
         
         elif msg_type == "HB" : 
-            state = data_list[2]
-            bots[id].point.x = state[0]
-            bots[id].point.y = state[1]
-            bots[id].absolute_speed = state[2]
-            bots[id].acceleration = state[3]
+            bots[id].mti = data_list[2]
             bots[id].last_update = time
-            
 
 
 def heart_beat(status):
     my_bot = bots[my_id]
-    if status == "HB": msg = str([my_id, "HB", [my_bot.point.x, my_bot.point.y, my_bot.absolute_speed, my_bot.acceleration]])
+    if status == "HB": msg = str([my_id, "HB", my_bot.mti])
     if status == "ENTER": msg = str([my_id, "ENTER", 0])
     if status == "EXIT": msg = str([my_id, "EXIT", 0])
     
@@ -501,6 +533,19 @@ def heart_beat(status):
         send(ip[id], 2020, msg)
     
         
+def con1(intersection:Intersection):
+    intersection.init_intersection(bots[my_id])
+    return not bots[my_id].intersection_dist_lists == []
+
+def heart_beat_con():
+    con = True
+    for bot in bots:
+        if bot.id == my_id: continue
+        con = con and bot.loss_of_signal()
+    return con
+
+
+
 if __name__ == '__main__': 
     run_flag = threading.Event()
     run_flag.set()
