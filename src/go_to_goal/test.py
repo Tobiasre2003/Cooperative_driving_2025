@@ -11,7 +11,7 @@ from gv_client.msg import LaptopSpeed
 from std_msgs.msg import Header
 from geometry_msgs.msg import Polygon, Point32
 import math
- 
+from go_to_goal import SPEED
 
 rospy.init_node('test', anonymous=True)
 rospy.loginfo("Starting test node")
@@ -251,14 +251,12 @@ class Bot:
         self.enter = False
     
         
-        self.mean_time_to_intersection = None
-        
         self.acceleration = 0
         
         self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
 
         self.path = []
-        self.claimed_intersection_parts = []
+        
 
     def update_pos(self, point, theta):
         self.point = point
@@ -284,6 +282,7 @@ class Bot:
             self.intersection_dist_list = self.intersection_dist_lists[0][1]
             self.init_path_len = self.intersection_dist_lists[0][2]
             self.intersection_sections = [sublist[3] for sublist in self.intersection_dist_lists]
+            self.update_intersection_time(intersection)
         except: 
             return False
         
@@ -291,7 +290,16 @@ class Bot:
         self.mti = intersection.mean_time_to_intersection(self)
         self.time_in_intersection = intersection.get_exit_dist(self)/self.absolute_speed + 3
         
-        
+    def exit_intersection(self, intersection):
+        intersection.release_parts(self)
+        self.intersection_dist_lists = None
+        self.intersection_dist_list = None
+        self.init_path_len = 0
+        self.intersection_sections = []
+        self.mti = None
+    
+  
+                
 
 class Intersection_section:
     def __init__(self, p1:Point, p2:Point, n, theta):
@@ -300,7 +308,7 @@ class Intersection_section:
         self.n = n
         self.center_point = p1.get_moved_point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
         self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
-        self.claimed = False
+        self.claimed = None
 
     def get_entry_point_dist(self, bot:Bot):
         outside = None
@@ -335,15 +343,15 @@ class Intersection_section:
             
         return bot_start_dist + sum(tot_dist_list), tot_dist_list
             
-    def claim(self):
-        if not self.claimed: 
-            self.claimed = True
+    def claim(self, bot:Bot):
+        if self.claimed == None: 
+            self.claimed = bot.id
             return True
         return False     
     
-    def release(self):
-        if self.claimed: 
-            self.claimed = False
+    def release(self, bot:Bot):
+        if self.claimed == bot.id: 
+            self.claimed = None
             return True
         return False      
 
@@ -372,19 +380,25 @@ class Intersection:
         pm = self.p2 - self.p1
         return pm.distance_between_points(bot.point)<=self.range
 
-    def claim_parts(self, bot:Bot):#parts:list):
+    def claim_parts(self, bot:Bot):
         parts = bot.intersection_sections
-        
         for n in parts:
-            if self.parts[n].claimed: return False
+            if not self.parts[n].claimed in [bot.id, None]: return False
         for n in parts:
-            self.parts[n].claim()
+            self.parts[n].claim(bot)
         return True
+    
+    def release_parts(self, bot:Bot):
+        parts = bot.intersection_sections
+        for n in parts: self.parts[n].release(bot)
+
     
     def dist_to_intersection(self, bot:Bot):
         try:
             bot.intersection_dist_list
-            dist_list = bot.intersection_dist_list[int(len(bot.init_path_len)-len(bot.path)):]
+            index = int(len(bot.init_path_len)-len(bot.path))
+            if index < 0 : return 0
+            dist_list = bot.intersection_dist_list[index:]
             return bot.point.distance_between_points_in_list(dist_list)
         except: 
             return None
@@ -408,6 +422,12 @@ class Intersection:
             if self.in_range(bot): 
                 bot_list.append(bot)
         return bot_list
+    
+    def bot_in_intersection(self, bot:Bot):
+        in_intersection = True
+        for part in self.parts:
+            in_intersection = in_intersection and part.obj.global_point_in_object(bot.point)
+        return in_intersection
     
 class Receiver:
     def __init__(self):
@@ -568,6 +588,7 @@ def get_priority_bot(intersection:Intersection):
     bot_list = intersection.bots_in_range()
     priority_bot_list = []
     for bot in bot_list:
+        if len(bot.intersection_sections) == 0: continue
         bot.update_mti()
         priority_bot_list.append((bot.mti, bot))
     return priority_bot_list.sort()
@@ -580,20 +601,25 @@ def intersection_ctrl(intersection:Intersection):
             priority_list = get_priority_bot(intersection)
             for mti, bot in priority_list:
                 if intersection.claim_parts(bot.intersection_sections):
-                    s.setSpeed(0)
+                    if bot.id == my_id:
+                        s.setSpeed(SPEED)
+                        
+                        if bot.mean_time_to_intersection == 0 and not intersection.bot_in_intersection(bot):
+                            heart_beat("EXIT")
+                            bot.exit_intersection(intersection)
+    
                 else:
-                    time_to_clear = priority_list[0][1].time_in_intersection
-                    dist = intersection.dist_to_intersection(bot)
-                    new_vel = dist / time_to_clear
-                    s.setSpeed(new_vel)
+                    if bot.id == my_id:
+                        time_to_clear = priority_list[0][1].time_in_intersection + priority_list[0][1].mti
+                        dist = intersection.dist_to_intersection(bot)
+                        new_vel = dist / time_to_clear
+                        s.setSpeed(new_vel)
                     
-            
+
             
             if len(priority_list)>=2 and priority_list[1][0] - priority_list[0][0] > time_step:
                 if priority_list[0].id == my_id:
                     s.setSpeed(0)
-                    
-
     else:
         s.setSpeed(0)
         

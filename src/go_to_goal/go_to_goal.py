@@ -423,6 +423,12 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         #if (node.i < len(PATH)):
         node.pub_path(PATH[node.i:])
+        
+        pubs, subs = rospy.get_published_topics()
+        if not any("gv_positions" == t[0] for t in pubs):
+            print("=== LOST CONTACT WITH GULLIVIEW! ===")
+            node.move(0, node.omega)
+        
         if node.omega == 0:
             print("=== LOST CONTACT WITH GULLIVIEW! ===")
         if (set_delay):
@@ -449,3 +455,6 @@ if __name__ == '__main__':
 
 
             
+
+
+
