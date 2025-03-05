@@ -282,15 +282,16 @@ class Intersection_section:
     def get_entry_point_dist(self, bot:Bot):
         outside = None
         inside = None
-        tot_dist = 0
+        bot_start_dist = 0
+        tot_dist_list = []
         for point in bot.path:
             if self.obj.global_point_in_object(point): 
                 inside = point
                 break
             else: 
                 if outside == None:
-                    tot_dist += bot.point.distance_between_points(point)
-                tot_dist += outside.distance_between_points(point)
+                    bot_start_dist += bot.point.distance_between_points(point)
+                tot_dist_list.append(outside.distance_between_points(point))
                 outside = point
         if outside == None or inside == None: return False, None
         entry_vector = Vector(inside.x-outside.x,inside.y-outside.y)
@@ -307,9 +308,9 @@ class Intersection_section:
                     distance = dist
                     entry_point = p
             prev_point = point
-            tot_dist += outside.distance_between_points(entry_point)
+            tot_dist_list.append(outside.distance_between_points(entry_point))
             
-        return entry_point, tot_dist
+        return bot_start_dist + sum(tot_dist_list), tot_dist_list
             
     def claim(self):
         if not self.claimed: 
@@ -330,12 +331,13 @@ class Intersection:
         self.p2 = p2
         self.parts = [Intersection_section(p1,p2,n,theta) for n in range(5)]
         
-    def get_entry_points(self, bot:Bot):
+    def get_entry_dist_list(self, bot:Bot):
+        path_len = len(bot.path)
         entry_list = []
         for part in self.parts:
-            point, dist = part.get_entry_point_dist(bot)
-            if not point == None:
-                entry_list.append((dist, point, part.n))
+            dist, dist_list = part.get_entry_point_dist(bot)
+            if not dist == None:
+                entry_list.append((dist, dist_list, path_len, part.n))
                 entry_list.sort()
         return entry_list
     
@@ -349,6 +351,11 @@ class Intersection:
         for n in parts:
             self.parts[n].claim()
         return True
+    
+    def dist_to_intersection(self, bot:Bot):
+        
+        
+        None
     
 class Receiver:
     def __init__(self):
