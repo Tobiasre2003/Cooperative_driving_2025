@@ -166,6 +166,8 @@ class GoToGoalNode:
         self.end_angles = []
 
         self.rate = rospy.Rate(10)
+        
+        self.last_gv_update = None
 
     # Update speed every time speed msg is recieved
     def _speed_cb(self, speed_msg):
@@ -195,6 +197,7 @@ class GoToGoalNode:
         self.path_publisher.publish(path)
 
     def _position_cb(self, position_msg):
+        self.last_gv_update = rospy.get_time()
         print("POS IN") # DEBUG
         self.x = position_msg.x
         self.y = position_msg.y
@@ -424,10 +427,9 @@ if __name__ == '__main__':
         #if (node.i < len(PATH)):
         node.pub_path(PATH[node.i:])
         
-        pubs, subs = rospy.get_published_topics()
-        if not any("gv_positions" == t[0] for t in pubs):
+        if not node.last_gv_update == None and rospy.get_time()-node.last_gv_update > 2:
             print("=== LOST CONTACT WITH GULLIVIEW! ===")
-            node.move(0, node.omega)
+            node.move(0, node.theta)
         
         if node.omega == 0:
             print("=== LOST CONTACT WITH GULLIVIEW! ===")
