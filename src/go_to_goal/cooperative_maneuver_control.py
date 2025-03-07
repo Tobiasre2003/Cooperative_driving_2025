@@ -384,6 +384,9 @@ class Intersection:
     
     def init_new_bot(self, bot:Bot):
         entry_arr, exit_arr, path_len = self.get_dist_lists(bot)
+        if len(entry_arr) == 0 or len(exit_arr) == 0: 
+            bot.intersection_sections = []
+            return
         bot.intersection_entry_dist_list = entry_arr[0][1]
         bot.intersection_exit_dist_list = exit_arr[-1][1]
         bot.intersection_sections = [sublist[3] for sublist in entry_arr]
@@ -401,6 +404,7 @@ class Intersection:
         exit_list = []
         for part in self.parts:
             entry, exit = part.get_path_dist(bot)
+            if entry == None or exit == None: break
             if not entry[1] == None:
                 entry_list.append((entry[0], entry[1], part.n))
                 entry_list.sort()
@@ -418,7 +422,13 @@ class Intersection:
         bot_list = []
         for bot in bots.values():
             if self.in_range(bot):
-                if bot.id == my_id and bot.Intersection_section == None: 
+                try:
+                    if bot.id == my_id and bot.intersection_sections == None: 
+                        self.init_new_bot(bot)
+                        if len(bot.intersection_sections) == 0: continue
+                    else:
+                        continue
+                except AttributeError:
                     self.init_new_bot(bot)
                 bot_list.append(bot)
         self.bots_in_intersection = bot_list
