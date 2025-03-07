@@ -362,8 +362,11 @@ class Intersection_section:
 
 
 class Intersection:
-    def __init__(self, p1:Point, p2:Point, bot_range:float, theta:float = 0):
-        self.range = bot_range
+    def __init__(self, p1:Point, p2:Point, bot_range:float = None, theta:float = 0):
+        if bot_range == None: 
+            self.range = max(abs(p1.x-p2.x),abs(p1.y-p2.y))
+        else:
+            self.range = bot_range
         self.p1 = p1
         self.p2 = p2
         self.parts = [Intersection_section(p1,p2,n,theta) for n in range(4)]
@@ -492,13 +495,35 @@ class Intersection:
             if bot.id == my_id: continue
             los = los or bot.loss_of_signal()
         return not los
+          
+    def sort_priority_bot_list(self, priority_list):
+        mti_ref = None
+        bot_list = []
+        time_step = 1
+        new_list = []
+        for mti,_, bot in priority_list:
+            if mti_ref == None : 
+                bot_list.append(bot)
+                mti_ref = mti
+                continue
+            if mti-mti_ref < time_step:
+                bot_list.append(bot)
+            else:
+                new_list.extend(sorted(bot_list, key=lambda bot: bot.id))
+                bot_list = []
+                bot_list.append(bot)
+                mti_ref = mti
+        new_list.extend(sorted(bot_list, key=lambda bot: bot.id))
+        return new_list
             
     def get_priority_bot(self):
         priority_bot_list = []
         for bot in self.bots_in_intersection:
             if not self.con_1(bot): continue
-            priority_bot_list.append((bot.mti, bot))
-        return priority_bot_list.sort()
+            priority_bot_list.append((bot.mti, bot.id, bot))
+            priority_bot_list.sort()
+        return self.sort_priority_bot_list(priority_bot_list)
+                    
         
         
     def bot_communication(self, msg):
@@ -531,7 +556,7 @@ class Intersection:
             self.heart_beat("ENTER")
             priority_list = self.get_priority_bot(self)
             
-            for _, bot in priority_list:
+            for bot in priority_list:
                 if self.claim_parts(bot):
                     if bot.id == my_id:
                         s.setSpeed(SPEED)
