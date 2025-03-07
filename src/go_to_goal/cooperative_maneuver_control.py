@@ -13,8 +13,8 @@ from geometry_msgs.msg import Polygon, Point32
 import math
 from go_to_goal import SPEED
 
-rospy.init_node('test', anonymous=True)
-rospy.loginfo("Starting test node")
+rospy.init_node('cooperative_maneuver_control', anonymous=True)
+rospy.loginfo("Starting cooperative_maneuver_control node")
 
 
 time_step = 1
