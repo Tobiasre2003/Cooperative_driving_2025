@@ -133,6 +133,7 @@ class Object:
         return Vector(x, y).get_unit_vector()
     
     def point_from_local_to_global(self, local_point:Point) -> Point:
+        if local_point == None: return None
         rotation_matrix = self.rotation_matrix(-1)
         x = rotation_matrix[0].dot_product(local_point) + self.pos.x
         y = rotation_matrix[1].dot_product(local_point) + self.pos.y
@@ -185,6 +186,7 @@ class Object:
         sign = 0
         closest_distance = math.inf
         collision = False
+        self_collision_point = None
         
         for point in self.from_globl_to_local(obj.from_local_to_global()):
             dist_from_vector_1 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p1)
@@ -201,9 +203,12 @@ class Object:
             if collision:    
                 obj_collision_point = self.velocity_vector.vector_projection(point).to_point()
                 distance = obj_collision_point.distance_between_points(front_point)
-                if distance < closest_distance: closest_distance = distance
-                        
-        return collision, closest_distance
+                if distance < closest_distance: 
+                    closest_distance = distance
+                    self_collision_point = obj_collision_point
+        
+        return self.point_from_local_to_global(front_point).distance_between_points(self.point_from_local_to_global(self_collision_point))
+
     
     def crossing_vector(self, self_point:Point, obj_point:Point, self_vel:Vector, obj_vel:Vector):
         try:
@@ -214,7 +219,7 @@ class Object:
                 self_dist = (self_point.y-obj_point.y+self_vel.y*((obj_point.x-self_point.x)/self_vel.x))/(obj_vel.y-(self_vel.y*obj_vel.x)/self_vel.x)
                 return (obj_vel*self_dist).to_point() + obj_point 
         except ZeroDivisionError:
-            return False
+            return None
      
     def moving_collision_course(self, obj):
         self_p1, self_p2, front_point = self.get_outer_points()
@@ -222,6 +227,7 @@ class Object:
         
         self_p1 = self.point_from_local_to_global(self_p1)
         self_p2 = self.point_from_local_to_global(self_p2)
+        front_point = self.point_from_local_to_global(front_point)
         obj_p1 = obj.point_from_local_to_global(obj_p1)
         obj_p2 = obj.point_from_local_to_global(obj_p2)
         
@@ -230,8 +236,8 @@ class Object:
     
         crossing_point_1 = self.crossing_vector(self_p1, obj_p2, self_vel, obj_vel)
         crossing_point_2 = self.crossing_vector(self_p2, obj_p1, self_vel, obj_vel)
-        
-        return crossing_point_1, front_point.distance_between_points(crossing_point_1), crossing_point_2, front_point.distance_between_points(crossing_point_2)
+
+        return front_point.distance_between_points(crossing_point_1), front_point.distance_between_points(crossing_point_2)
         
     def global_point_in_object(self, global_point:Point):
         local_point = self.point_from_globl_to_local(global_point)
@@ -261,6 +267,7 @@ class Bot:
         self.last_update = rospy.get_time()
         self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
         self.path = []
+        self.time_to_bot_collision = {}
         
     def update_pos(self, point, theta):
         self.point = point
@@ -280,6 +287,16 @@ class Bot:
     def loss_of_signal(self):
         return rospy.get_time() - self.last_update > time_step + 1
     
+    def update_collision_point(self, bot):
+        dist = self.obj.collision_course(bot.obj)
+        dist1, dist2 = self.obj.moving_collision_course(bot.obj)
+        collision_list = [dist, dist1, dist2]
+        collision_list = sorted(collision_list, key=lambda x: (x is None, x))
+        self.time_to_bot_collision[bot.id] = (collision_list[0]/1000)/self.absolute_speed # m / (m/s) = s
+        bot.time_to_bot_collision[self.id] = (collision_list[0]/1000)/bot.absolute_speed
+
+
+        
     
                 
 
@@ -338,7 +355,7 @@ class Intersection_section:
         for point in borders:
             vector = Vector(point.x-prev_point.x, point.y-prev_point.y)
             p = self.obj.crossing_vector(outside, prev_point, crossing_vector, vector)
-            if not p == False:
+            if not p == None:
                 dist = p.distance_between_points(outside)
                 if dist<distance:
                     distance = dist
@@ -362,7 +379,8 @@ class Intersection_section:
 
 
 class Intersection:
-    def __init__(self, p1:Point, p2:Point, bot_range:float = None, theta:float = 0):
+    def __init__(self, name:str, p1:Point, p2:Point, bot_range:float = None, theta:float = 0):
+        self.name = name
         if bot_range == None: 
             self.range = max(abs(p1.x-p2.x),abs(p1.y-p2.y))
         else:
@@ -487,11 +505,11 @@ class Intersection:
             in_intersection = in_intersection or part.obj.global_point_in_object(bot.point)
         return in_intersection
         
-    def heart_beat(status):
+    def heart_beat(self, status):
         my_bot = bots[my_id]
-        if status == "HB": msg = str(["intersection_1", my_id, "HB", my_bot.mti, my_bot.time_to_exit])
-        if status == "ENTER": msg = str(["intersection_1", my_id, "ENTER", my_bot.intersection_sections])
-        if status == "EXIT": msg = str(["intersection_1", my_id, "EXIT"])
+        if status == "HB": msg = str([self.name, my_id, "HB", my_bot.mti, my_bot.time_to_exit])
+        if status == "ENTER": msg = str([self.name, my_id, "ENTER", my_bot.intersection_sections])
+        if status == "EXIT": msg = str([self.name, my_id, "EXIT"])
         for id in bots.keys():
             if id == my_id: continue
             send(ip[id], 2020, msg)
@@ -553,8 +571,8 @@ class Intersection:
             bots[id].last_update = time
         
         elif msg_type == "HB" : 
-            bots[id].mti = msg[2][0]
-            bots[id].time_to_exit = msg[2][1]
+            bots[id].mti = msg[2]
+            bots[id].time_to_exit = msg[3]
             bots[id].last_update = time
         
         
@@ -580,9 +598,70 @@ class Intersection:
         else:
             s.setSpeed(0)
     
-    
-    
-    
+""" 
+# test att implementera merging av befintliga funktioner
+
+class Merging:
+    def __init__(self, name:str, border_points:list):
+        self.name = name
+        x = [point.x for point in border_points]
+        y = [point.y for point in border_points]
+        self.merging_zone = Object(Point(max(x)-min(x), max(y)-min(y)), 0)
+        self.merging_zone.borders = self.merging_zone.from_globl_to_local(border_points)
+        
+        self.bots_in_merging_zone = []
+        
+    def update(self):
+        self.get_bots_in_merging_zone()
+        self.update_collision_points()
+        self.heart_beat("HB")
+
+    def get_bots_in_merging_zone(self):
+        bot_list = []
+        for bot in bots.values():
+            if self.merging_zone.global_point_in_object(bot.point):
+                bot_list.append(bot)
+        self.bots_in_merging_zone = bot_list
+        
+    def update_collision_points(self):
+        for index in range(len(self.bots_in_merging_zone)):
+            bot1 = self.bots_in_merging_zone[index]
+            for bot2 in self.bots_in_merging_zone[index+1:]:
+                bot1.update_collision_point(bot2)
+                
+    def heart_beat(self, status):
+        my_bot = bots[my_id]
+        if status == "EXIT": msg = str([self.name, my_id, "EXIT"])
+        for id in bots.keys():
+            if id == my_id: continue
+            try: time = my_bot.time_to_bot_collision[id] 
+            except: time = False
+            if status == "ENTER": msg = str([self.name, my_id, "ENTER", time])
+            if status == "HB": msg = str([self.name, my_id, "HB", time])
+            send(ip[id], 2020, msg)
+            
+    def bot_communication(self, msg):
+        id = msg[0]
+        msg_type = msg[1]
+        time = rospy.get_time()
+        
+        if msg_type == "ENTER" : 
+            if not msg[2] == False:
+                bots[id].time_to_bot_collision[my_id] = msg[2]
+            bots[id].last_update = time
+        
+        elif msg_type == "EXIT" : 
+            bots[id].last_update = time
+        
+        elif msg_type == "HB" : 
+            if not msg[2] == False:
+                bots[id].time_to_bot_collision[my_id] = msg[2]
+            bots[id].last_update = time
+                
+   
+"""   
+
+
     
 class Receiver:
     def __init__(self):
@@ -702,7 +781,7 @@ def wait_for_path(bot:Bot):
         if len(bot.path) > 0: return
 
 
-cooperative_controller = {"intersection 1":Intersection(Point(0,0), Point(0,0), 0)}
+cooperative_controller = {"intersection 1":Intersection("intersection 1",Point(0,0), Point(0,0), 0)}
 
 def run():
     for controller in cooperative_controller.values():
