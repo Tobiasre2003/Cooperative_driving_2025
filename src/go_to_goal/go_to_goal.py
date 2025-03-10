@@ -58,8 +58,8 @@ INTERSECTION_PATH = [Point(1200, 8200, 0), Point(2200, 6800, 0), Point(3200, 540
                      Point(3200, 8200, 0), Point(2200, 9000, 0)]
 
 
-INTERSECTION_PATH_1 = [Point(3968,7741,0), Point(3968, 4200,0), Point(3628, 3714,0), Point(1852, 3500,0)]
-INTERSECTION_PATH_2 = [Point(3487,805,0), Point(3590, 2637,0), Point(3578, 3714,0), Point(3471, 6065,0)]
+INTERSECTION_PATH_1 = [Point(3968,7741,0),Point(4000, 5735, 0), Point(3968, 4200,0), Point(3968, 3552, 0), Point(2914, 3552, 0), Point(1852, 3500,0)]
+INTERSECTION_PATH_2 = [Point(3382, 411, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0)]
 
 
 PATH = []
