@@ -352,7 +352,7 @@ class Intersection_section:
         
         entry_tot_dist_list.append(entry_outside.distance_between_points(entry_point))
         exit_tot_dist_list.append(exit_outside.distance_between_points(exit_point))
-        print("entry point: " ,self.crossing_boarder(entry_outside, entry_inside))
+        #print("entry point: " ,self.crossing_boarder(entry_outside, entry_inside))
         return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point)
     
     
@@ -445,7 +445,7 @@ class Intersection:
    
         for part in self.parts:
             entry, exit = part.get_path_dist(bot, path)
-            print(part.n, entry, exit)
+            #print(part.n, entry, exit)
             if entry == None or exit == None: continue
             if not entry[1] == None:
                 entry_list.append((entry[0], entry[1], entry[2], part.n))
@@ -624,7 +624,7 @@ class Intersection:
                     if self.claim_parts(bot):
                         if bot.id == my_id:
                             s.setSpeed(SPEED)
-                            print("max speed", SPEED)
+                            print("intersection_sections: ", bot.intersection_sections,"max speed", SPEED)
                             if bot.mti == 0 and not self.bot_in_intersection(bot):
                                 self.heart_beat("EXIT")
                                 self.reset_bot(bot)
@@ -637,7 +637,7 @@ class Intersection:
                             #print("new_vel: ", new_vel, "dist: ", dist)
                             if new_vel <= 0.015:
                                 new_vel = 0
-                                print(bot.point)
+                                #print(bot.point)
                             
                             s.setSpeed(new_vel)
             else:
@@ -863,7 +863,7 @@ if __name__ == '__main__':
         t.start()
         
         wait_for_path(bots[my_id])
-        cooperative_controller["intersection 1"].parts[1].claimed = 1
+        #cooperative_controller["intersection 1"].parts[1].claimed = 1
         while not rospy.is_shutdown():
             #print(bots[my_id].point)
             #print(cooperative_controller["intersection 1"])
