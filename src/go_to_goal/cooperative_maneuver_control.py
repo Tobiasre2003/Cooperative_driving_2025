@@ -347,10 +347,13 @@ class Intersection_section:
         
         if entry_outside == None or entry_inside == None: return None, None
         
-        entry_tot_dist_list.append(entry_outside.distance_between_points(self.crossing_boarder(entry_outside, entry_inside)))
-        exit_tot_dist_list.append(exit_outside.distance_between_points(self.crossing_boarder(exit_inside, exit_outside)))
-        print(entry_tot_dist_list, exit_tot_dist_list)
-        return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list)
+        entry_point = self.crossing_boarder(entry_outside, entry_inside)
+        exit_point = self.crossing_boarder(exit_inside, exit_outside)
+        
+        entry_tot_dist_list.append(entry_outside.distance_between_points(entry_point))
+        exit_tot_dist_list.append(exit_outside.distance_between_points(exit_point))
+        print("entry point: " ,self.crossing_boarder(entry_outside, entry_inside))
+        return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point)
     
     
     def crossing_boarder(self, outside:Point, inside:Point):
@@ -420,13 +423,17 @@ class Intersection:
             bot.intersection_sections = []
             return
         bot.intersection_entry_dist_list = entry_arr[0][1]
+        bot.intersection_entry_point = entry_arr[0][2]
         bot.intersection_exit_dist_list = exit_arr[-1][1]
-        bot.intersection_sections = [sublist[2] for sublist in entry_arr]
+        bot.intersection_exit_point = exit_arr[-1][2]
+        bot.intersection_sections = [sublist[3] for sublist in entry_arr]
         bot.start_path_len = path_len
         
     def reset_bot(self, bot:Bot):
         bot.intersection_entry_dist_list = None
         bot.intersection_exit_dist_list = None
+        bot.intersection_entry_point = None
+        bot.intersection_exit_point = None
         bot.intersection_sections = None
         bot.start_path_len = None
         
@@ -435,16 +442,16 @@ class Intersection:
         path_len = len(path)
         entry_list = []
         exit_list = []
-        print(self.parts)
+   
         for part in self.parts:
             entry, exit = part.get_path_dist(bot, path)
             print(part.n, entry, exit)
             if entry == None or exit == None: continue
             if not entry[1] == None:
-                entry_list.append((entry[0], entry[1], part.n))
+                entry_list.append((entry[0], entry[1], entry[2], part.n))
                 entry_list.sort()
             if not exit[1] == None:
-                exit_list.append((exit[0], exit[1], part.n))
+                exit_list.append((exit[0], exit[1], exit[2], part.n))
                 entry_list.sort()          
                 
         return entry_list, exit_list, path_len
@@ -492,7 +499,9 @@ class Intersection:
             index = int(bot.start_path_len-len(bot.path))
             if index > len(bot.intersection_entry_dist_list) : return 0
             dist_list = bot.intersection_entry_dist_list[index:]
-            return sum(dist_list) + bot.point.distance_between_points(bot.path[0])
+            bot_to_point_dist = bot.point.distance_between_points(bot.path[0])
+            if len(dist_list) <= 1: return bot.point.distance_between_points(bot.intersection_entry_point)
+            return sum(dist_list) + bot_to_point_dist
         except: 
             return None
     
@@ -501,7 +510,9 @@ class Intersection:
             index = int(len(bot.start_path_len)-len(bot.path))
             if index > len(bot.intersection_exit_dist_list) : return 0
             dist_list = bot.intersection_exit_dist_list[index:]
-            return sum(dist_list) + bot.point.distance_between_points(bot.path[0])
+            bot_to_point_dist = bot.point.distance_between_points(bot.path[0])
+            if len(dist_list) <= 1: return bot.point.distance_between_points(bot.intersection_exit_point)
+            return sum(dist_list) + bot_to_point_dist
         except: 
             return None
     
@@ -620,10 +631,14 @@ class Intersection:
                     else:
                         if bot.id == my_id:
                             time_to_clear = 3  #priority_list[0].time_to_exit
-                            dist = self.dist_to_entry(bot)/1000
+                            dist = self.dist_to_entry(bot)/1000 - 0.16 ## snabb fix
                             
                             new_vel = min(max(dist / time_to_clear, 0), SPEED)
-                            print("new_vel: ", new_vel, "dist: ", dist)
+                            #print("new_vel: ", new_vel, "dist: ", dist)
+                            if new_vel <= 0.015:
+                                new_vel = 0
+                                print(bot.point)
+                            
                             s.setSpeed(new_vel)
             else:
                 if self.in_range(bots[my_id]):
@@ -848,8 +863,9 @@ if __name__ == '__main__':
         t.start()
         
         wait_for_path(bots[my_id])
-        cooperative_controller["intersection 1"].parts[1].claimed = 4
+        cooperative_controller["intersection 1"].parts[1].claimed = 1
         while not rospy.is_shutdown():
+            #print(bots[my_id].point)
             #print(cooperative_controller["intersection 1"])
             run()
 
