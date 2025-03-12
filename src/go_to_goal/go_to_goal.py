@@ -197,6 +197,8 @@ class GoToGoalNode:
         self.path_publisher.publish(path)
 
     def _position_cb(self, position_msg):
+        id = position_msg.tagId
+        if not id == my_id: return
         self.last_gv_update = rospy.get_time()
         print("POS IN") # DEBUG
         self.x = position_msg.x
@@ -420,6 +422,7 @@ if __name__ == '__main__':
     set_delay = False
     PATH = PATHS[sys.argv[1]]
     LOOP_PATH = LOOP_PATHS[sys.argv[1]]
+    my_id = 4
     node = GoToGoalNode()
     
     rospy.on_shutdown(node.shutdown)
