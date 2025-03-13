@@ -37,7 +37,7 @@ def init_log():
 def log(filepath, name:str, data):
     time = datetime.datetime.now().strftime("%M-%S-%f")
     data = str(data)
-    print(f"Time: {time}, {name}: {data}")
+    #print(f"Time: {time}, {name}: {data}")
     with open(filepath, "a") as file:
         file.write(f"Time: {time}, {name}: {data}\n")
 
@@ -353,13 +353,14 @@ class Intersection:
                 if self.obj.global_point_in_object(point): 
                     entry_inside = point
                     exit_tot_dist_list = entry_tot_dist_list.copy()
+
                     for point in path[i:]:
                         if not self.obj.global_point_in_object(point): 
                             exit_outside = point
                             break
                         else: 
-                            if exit_inside == None: exit_inside = entry_inside
-                            exit_tot_dist_list.append(exit_inside.distance_between_points(point))
+                            if exit_inside == None: exit_tot_dist_list.append(entry_outside.distance_between_points(entry_inside))
+                            else: exit_tot_dist_list.append(exit_inside.distance_between_points(point))
                             exit_inside = point
                     break
                 else: 
@@ -374,7 +375,7 @@ class Intersection:
             log(file, "get_path_dist points", f"part: {self.n} = entry: {(entry_outside, entry_inside)}; exit: {(exit_inside, exit_outside)}")
             
             entry_tot_dist_list.append(entry_outside.distance_between_points(entry_point))
-            exit_tot_dist_list.append(exit_outside.distance_between_points(exit_point))
+            exit_tot_dist_list.append(exit_inside.distance_between_points(exit_point))
 
             log(file, "get_path_dist", f"part: {self.n} = "+str(((bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point))))
             
@@ -429,11 +430,13 @@ class Intersection:
                 entry, exit = part.get_path_dist(self.bot, path)
                 if entry == None or exit == None: continue
                 if not entry[1] == None:
-                    entry_list.append((entry[0], entry[1], entry[2], part.n))
-                    entry_list.sort()
+                    entry_list.append((len(entry[1]), entry[1], entry[2], part.n))
+                
                 if not exit[1] == None:
-                    exit_list.append((exit[0], exit[1], exit[2], part.n))
-                    entry_list.sort()          
+                    exit_list.append((len(exit[1]), exit[1], exit[2], part.n))
+                
+            entry_list.sort()
+            exit_list.sort()          
                     
             if len(entry_list) == 0 or len(exit_list) == 0: 
                 self.intersection_sections = []
@@ -448,24 +451,35 @@ class Intersection:
             log(file, "Path through inter", f"inter parts: {self.intersection_sections}, entry: distlist: {self.intersection_entry_dist_list}, point: {self.intersection_entry_point}; exit: distlist: {self.intersection_exit_dist_list}, point: {self.intersection_exit_point}")
         
         
-        def dist_to_border(self, dist_list:list, last_point:Point):
+        def dist_to_border(self, dist_list:list, last_point:Point, last_con:bool):
             log(file, "dist_to_border", f"dist_list: {dist_list}, last_point: {last_point}")
             try:
                 index = int(self.start_path_len-len(self.bot.path))
-                if index > len(dist_list) : return 0
+                if index > len(dist_list) : 
+                    log(file, "dist_to_border", f"index: {index}, len dist list: {len(dist_list)}")
+                    return 0
                 dist_list = dist_list[index:]
                 bot_to_point_dist = self.bot.point.distance_between_points(self.bot.path[0])
-                if len(dist_list) <= 1: return self.bot.point.distance_between_points(last_point)
+                if len(dist_list) <= 1: 
+                    if last_con: 
+                        log(file, "dist_to_border", f"last_con: {last_con}, {len(dist_list)}")
+                        return 0
+                    return self.bot.point.distance_between_points(last_point)
                 return sum(dist_list) + bot_to_point_dist
             except: 
                 return None
         
         def dist_to_entry(self):
-            return self.dist_to_border(self.intersection_entry_dist_list, self.intersection_entry_point)
+            last_con = self.outer.bot_in_intersection(self.bot)
+            return self.dist_to_border(self.intersection_entry_dist_list, self.intersection_entry_point, last_con)
         
         def dist_to_exit(self):
-            return self.dist_to_border(self.intersection_exit_dist_list, self.intersection_exit_point)
-        
+            dti = self.bot.point.distance_between_points(self.intersection_entry_point)
+            dbee = self.intersection_entry_point.distance_between_points(self.intersection_exit_point)
+            log(file, "dist_to_exit", f"dti: {dti}, dbee: {dbee}, bot in inter: {self.outer.bot_in_intersection(self.bot)}, mti: {self.mti}")
+            last_con = dti > dbee
+            return self.dist_to_border(self.intersection_exit_dist_list, self.intersection_exit_point, last_con)
+         
         def mean_time_to_dist(self, bot:Bot, dist:float):
             log(file, "MT...", f"bot: {bot}, dist: {dist}")
             if dist == None: return math.inf
@@ -500,17 +514,19 @@ class Intersection:
     
     def update(self):
         self.bots_in_range()
-        if my_id in self.bot_params: self.bot_params[my_id].update_times()
+        if self.conecondition_one(): self.bot_params[my_id].update_times()
         self.heart_beat("HB")
         self.intersection_ctrl()
     
     def in_range(self, bot:Bot, max_range:float = None):
         if max_range == None: max_range = self.range
         center_point = (self.p2 - self.p1)*0.5 + self.p1
+        log(file, "in range functrion", (center_point.distance_between_points(bot.point), max_range))
         return center_point.distance_between_points(bot.point) <= max_range
     
     def bots_in_range(self):
-        for bot in bots.values():
+        bot_dic = bots.copy()
+        for bot in bot_dic.values():
             if self.in_range(bot) and not bot.id in self.bot_params:
                 self.bot_params[bot.id] = self.Bot_param(self, bot)
                 if bot.id == my_id: 
@@ -549,22 +565,25 @@ class Intersection:
         mte = self.bot_params[my_id].time_to_exit
         intsec = self.bot_params[my_id].intersection_sections
         
-        if status == "HB": msg = str([self.name, my_id, "HB", mti, mte])
-        if status == "ENTER": msg = str([self.name, my_id, "ENTER", intsec, mti, mte])
-        if status == "EXIT": msg = str([self.name, my_id, "EXIT"])
-        if status == "STOP": msg = str([self.name, my_id, "STOP"])
+        if status == "HB": msg = str([self.name,my_id,"HB",mti,mte])
+        if status == "ENTER": msg = str([self.name,my_id,"ENTER",intsec,mti,mte])
+        if status == "EXIT": msg = str([self.name,my_id,"EXIT"])
+        if status == "STOP": msg = str([self.name,my_id,"STOP"])
         
         if receiver_id == None:
             params_keys = self.bot_params.copy()
             for id in params_keys.keys():
+                #print(id)
                 if id == my_id: continue
                 udp_client.send(ip[id], 2020, msg)
         elif receiver_id in ip.keys():
             udp_client.send(ip[receiver_id], 2020, msg)
       
     def conecondition_one(self):
+        log(file, "con1, my id in params", str(my_id in self.bot_params))
         if not my_id in self.bot_params: return False
         intsec = self.bot_params[my_id].intersection_sections
+        log(file, "con1, intersec sec", str(type(intsec) is list and len(intsec)>0))
         return type(intsec) is list and len(intsec)>0
 
     def heart_beat_con(self) -> bool:
@@ -601,9 +620,11 @@ class Intersection:
     def get_priority_bot(self):
         priority_bot_list = []
         params = self.bot_params.copy()
-        for params in params.values():
-            bot = params.bot
-            priority_bot_list.append((params.mti, bot.id, bot))
+        for param in params.values():
+            bot = param.bot
+            mti = param.mti if not param.mti == None else math.inf
+            priority_bot_list.append((mti, bot.id, bot))
+            log(file, "priority list part", (mti, bot.id, bot))
             priority_bot_list.sort()
         return self.sort_priority_bot_list(priority_bot_list)
                     
@@ -639,7 +660,7 @@ class Intersection:
         
     def intersection_ctrl(self):
         my_bot = bots[my_id]
-        if self.in_range(my_bot, self.range/2) and self.conecondition_one(): 
+        if self.in_range(my_bot, self.range*0.8) and self.conecondition_one(): 
             log(file, "Status", "bot in entry range")
             if self.heart_beat_con():
                 
@@ -654,16 +675,15 @@ class Intersection:
                             if bot.id == my_id:
                                 log(file, "Status", "Entering")
                                 topic_handler.setSpeed(SPEED)
-                                if self.bot_params[bot.id].mti == 0 and not self.bot_in_intersection(bot):
-                                    """
-                                    log(file, "Status", "Exiting")
+                                log(file, "dist to exit", str(self.bot_params[my_id].dist_to_exit()))
+                                if self.bot_params[my_id].dist_to_exit() == 0:
                                     self.heart_beat("EXIT")
                                     self.remove_bot(my_bot)
-                                    """
+                                    return
                         else:
                             if bot.id == my_id:
                                 log(file, "Status", "Slowing down")
-                                time_to_clear = 3 #self.bot_params[priority_list[0].id].time_to_exit
+                                time_to_clear = self.bot_params[priority_list[0].id].time_to_exit
                                 dist = self.bot_params[my_id].dist_to_entry()/1000 - 0.16 ## snabb fix
                                 new_vel = min(max(dist / time_to_clear, 0), SPEED)
                                 log(file, "Slowing down: ", f"dist: {(dist+0.16)*1000}, new_vel: {new_vel}")
@@ -788,6 +808,7 @@ class UDP_server(threading.Thread):
             elif self.isfloat(element): element = float(element)
             elif element == "False": element = False
             elif element == "True": element = True
+            elif element == "None": element = None
             else: element = element[1:-1]
             arr[i] = element
         return arr
