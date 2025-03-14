@@ -357,12 +357,10 @@ class Bot:
     
 class Intersection:
     class Intersection_section:
-        def __init__(self, p1:Point, p2:Point, n:int, theta:float):
-            dx = abs(p2.x-p1.x)
-            dy = abs(p2.y-p1.y)
+        def __init__(self, center_point:Point, dx:float, dy:float, n:int, theta:float):
             self.n = n
-            self.center_point = p1 + Point(dx/4 + int(n%2)*dx/2, dy/4 + int(math.floor(n/2))*dy/2)
-            self.obj = Object(self.center_point, theta, [Point(-dx/4,-dy/4),Point(-dx/4,dy/4),Point(dx/4,dy/4),Point(dx/4,-dy/4)])
+            self.center_point = center_point
+            self.obj = Object(self.center_point, theta, [Point(-dx/2,-dy/2),Point(-dx/2,dy/2),Point(dx/2,dy/2),Point(dx/2,-dy/2)])
             self.claimed = None
 
         def __repr__(self):
@@ -529,12 +527,20 @@ class Intersection:
             self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit() + 0.20) # snabb fix
             
     
-    def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, bot_range:float = None):
+    def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, sections:int = 4, bot_range:float = None):
         self.name = name
         self.range = bot_range if not bot_range == None else max(abs(p1.x-p2.x),abs(p1.y-p2.y))*2#1.1
         self.p1 = p1
         self.p2 = p2
-        self.parts = [self.Intersection_section(p1,p2,n,theta) for n in range(4)]
+        self.parts = []
+
+        for n in range(sections):
+            dx_n = (p2-p1).x/math.sqrt(sections)
+            dy_n = (p2-p1).y/math.sqrt(sections)
+            center_point_n = p1 + Point(dx_n*(0.5+n%2), dy_n*(0.5+math.floor(n/2)))
+            self.parts.append(self.Intersection_section(center_point_n,dx_n,dy_n,n,theta))
+        
+        #self.parts = [self.Intersection_section(p1,p2,n,theta) for n in range(4)]
         self.bot_params = ThreadSafeDict()
         
     
@@ -839,7 +845,7 @@ class UDP_server(threading.Thread):
 
 
 
-cooperative_controller = {"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605), 0)}
+cooperative_controller = {"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605), 0, 4)}
 
 def run():
     for controller in cooperative_controller.values():
