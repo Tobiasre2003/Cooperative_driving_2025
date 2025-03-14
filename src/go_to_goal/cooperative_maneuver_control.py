@@ -493,7 +493,7 @@ class Intersection:
             
         def update_times(self):
             self.mti = self.mean_time_to_dist(self.bot, self.dist_to_entry())
-            self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit()) + 3
+            self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit()) #+ 3
             
     
     def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, bot_range:float = None):
@@ -503,12 +503,14 @@ class Intersection:
         self.p2 = p2
         self.parts = [self.Intersection_section(p1,p2,n,theta) for n in range(4)]
         self.bot_params = {}
+        self.lock = threading.Lock()
     
     def update(self):
         self.bots_in_range()
         if self.conecondition_one(): self.bot_params[my_id].update_times()
         self.heart_beat("HB")
-        self.intersection_ctrl()
+        with self.lock:
+            self.intersection_ctrl()
     
     def in_range(self, bot:Bot, max_range:float = None):
         if max_range == None: max_range = self.range
@@ -555,18 +557,21 @@ class Intersection:
         mti = self.bot_params[my_id].mti
         mte = self.bot_params[my_id].time_to_exit
         intsec = self.bot_params[my_id].intersection_sections
+        if intsec == []: intsec = None
         
-        if status == "HB": msg = str([self.name,my_id,"HB",mti,mte])
+        if status == "HB": msg = str([self.name,my_id,"HB",intsec,mti,mte])
         if status == "ENTER": msg = str([self.name,my_id,"ENTER",intsec,mti,mte])
         if status == "EXIT": msg = str([self.name,my_id,"EXIT"])
         
         if receiver_id == None:
             params_keys = self.bot_params.copy()
             for id in params_keys.keys():
+                if not id in ip.keys():continue
                 #print(id)
                 if id == my_id: continue
                 udp_client.send(ip[id], 2020, msg)
         elif receiver_id in ip.keys():
+            if not receiver_id in ip.keys():return
             udp_client.send(ip[receiver_id], 2020, msg)
       
     def conecondition_one(self):
@@ -628,13 +633,15 @@ class Intersection:
             bots[id].last_update = time
         
         elif msg_type == "EXIT" : 
-            self.release_parts(bots[id])
-            self.remove_bot(bots[id])
-            bots[id].last_update = time
+            with self.lock:
+                self.release_parts(bots[id])
+                self.remove_bot(bots[id])
+                bots[id].last_update = time
 
         elif msg_type == "HB" : 
-            params.mti = msg[2]
-            params.time_to_exit = msg[3]
+            params.intersection_sections = msg[2]
+            params.mti = msg[3]
+            params.time_to_exit = msg[4]
             bots[id].last_update = time
             
 
