@@ -36,10 +36,10 @@ def init_log():
         
 def log(filepath, name:str, data):
     time = datetime.datetime.now().strftime("%M-%S-%f")
+    pos = bots[my_id].point
     data = str(data)
-    #print(f"Time: {time}, {name}: {data}")
     with open(filepath, "a") as file:
-        file.write(f"Time: {time}, {name}: {data}\n")
+        file.write(f"Time: {time}, Pos: {pos}, {name}: {data}\n")
 
 def next_time_step() -> bool:
     global last_time_step
@@ -342,7 +342,8 @@ class Bot:
         self.absolute_speed = speed
     
     def loss_of_signal(self):
-        return rospy.get_time() - self.last_update > time_step + 1
+        time_diff = rospy.get_time() - self.last_update
+        return time_diff > time_step + 1, time_diff
     
     def update_collision_point(self, bot):
         dist = self.obj.collision_course(bot.obj)
@@ -357,8 +358,9 @@ class Bot:
     
 class Intersection:
     class Intersection_section:
-        def __init__(self, center_point:Point, dx:float, dy:float, n:int, theta:float):
+        def __init__(self, outer, center_point:Point, dx:float, dy:float, n:int, theta:float):
             self.n = n
+            self.outer = outer
             self.center_point = center_point
             self.obj = Object(self.center_point, theta, [Point(-dx/2,-dy/2),Point(-dx/2,dy/2),Point(dx/2,dy/2),Point(dx/2,-dy/2)])
             self.claimed = None
@@ -377,6 +379,7 @@ class Intersection:
             exit_inside = None
             exit_tot_dist_list = []
             bot_start_dist = 0
+            done = False
             
             for i in range(len(path)):
                 point = path[i]
@@ -385,10 +388,13 @@ class Intersection:
                     exit_tot_dist_list = entry_tot_dist_list.copy()
 
                     for point in path[i:]:
-                        if not self.obj.global_point_in_object(point): 
+                        if (not self.obj.global_point_in_object(point)) or (not self.outer.obj.global_point_in_object(point)): 
+                            done = (not self.outer.obj.global_point_in_object(point))
                             exit_outside = point
                             break
                         else: 
+                            if entry_outside == None: 
+                                break
                             if exit_inside == None: exit_tot_dist_list.append(entry_outside.distance_between_points(entry_inside))
                             else: exit_tot_dist_list.append(exit_inside.distance_between_points(point))
                             exit_inside = point
@@ -398,7 +404,7 @@ class Intersection:
                     else: entry_tot_dist_list.append(entry_outside.distance_between_points(point))
                     entry_outside = point
             
-            if entry_outside == None or entry_inside == None: return None, None
+            if entry_outside == None or entry_inside == None: return None, None, done
             
             entry_point = self.crossing_boarder(entry_outside, entry_inside)
             exit_point = self.crossing_boarder(exit_outside, exit_inside)
@@ -406,7 +412,7 @@ class Intersection:
             entry_tot_dist_list.append(entry_outside.distance_between_points(entry_point))
             exit_tot_dist_list.append(exit_inside.distance_between_points(exit_point))
 
-            return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point)
+            return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point), done
         
         def crossing_boarder(self, outside:Point, inside:Point):
             crossing_vector = Vector(inside.x-outside.x,inside.y-outside.y)
@@ -445,36 +451,55 @@ class Intersection:
             self.outer = outer
             self.bot = bot
             self.lock = threading.Lock()
+            self.my_priority = 2
             log(file, "New bot params with id", bot.id)
-            
+        
+        def set_priority(self, priority:int):
+            self.my_priority = priority
+        
         def init_my_bot(self):
             log(file, "Status", "init inter params")
             path = self.bot.path.copy()
             path_len = len(path)
             entry_list = []
             exit_list = []
-    
+
             for part in self.outer.parts:
-                entry, exit = part.get_path_dist(self.bot, path)
+                entry, exit, last = part.get_path_dist(self.bot, path)
                 if entry == None or exit == None: continue
                 if not entry[1] == None:
-                    entry_list.append((len(entry[1]), entry[1], entry[2], part.n))
+                    entry_list.append((len(entry[1]), entry[1], entry[2], part.n, last))
                 
                 if not exit[1] == None:
-                    exit_list.append((len(exit[1]), exit[1], exit[2], part.n))
+                    exit_list.append((len(exit[1]), exit[1], exit[2], part.n, last))
                 
             entry_list.sort()
-            exit_list.sort()          
+            exit_list.sort()    
+            
+            last_index = None
+            
+            for index in range(len(exit_list)):
+                if exit_list[index][4]: 
+                    last_index = index
+                    break
+            
+            if not last_index == None:
+                entry_list = entry_list[:last_index+1]
+                exit_list = exit_list[:last_index+1]
+
                     
             if len(entry_list) == 0 or len(exit_list) == 0: 
                 self.intersection_sections = []
                 log(file, "Status", "no path through inter")
                 return
+            
             self.intersection_entry_dist_list = entry_list[0][1]
             self.intersection_entry_point = entry_list[0][2]
             self.intersection_exit_dist_list = exit_list[-1][1]
             self.intersection_exit_point = exit_list[-1][2]
             self.intersection_sections = [sublist[3] for sublist in entry_list]
+            self.section_entry_data = {sublist[3]:(sublist[2], sublist[1]) for sublist in entry_list}
+            self.section_exit_data = {sublist[3]:(sublist[2], sublist[1]) for sublist in exit_list}
             self.start_path_len = path_len
             log(file, "Path through inter", f"inter parts: {self.intersection_sections}, entry: distlist: {self.intersection_entry_dist_list}, point: {self.intersection_entry_point}; exit: distlist: {self.intersection_exit_dist_list}, point: {self.intersection_exit_point}")
         
@@ -499,10 +524,21 @@ class Intersection:
             return self.dist_to_border(self.intersection_entry_dist_list, self.intersection_entry_point, last_con)
         
         def dist_to_exit(self):
-            dti = self.bot.point.distance_between_points(self.intersection_entry_point)
-            dbee = self.intersection_entry_point.distance_between_points(self.intersection_exit_point)
-            last_con = dti > dbee
+            dist_to_int = self.bot.point.distance_between_points(self.intersection_entry_point)
+            dist_in_int = self.intersection_entry_point.distance_between_points(self.intersection_exit_point)
+            last_con = dist_to_int > dist_in_int
             return self.dist_to_border(self.intersection_exit_dist_list, self.intersection_exit_point, last_con)
+        
+        def dist_to_parts_exit(self):
+            dist_dict = {}
+            for n in self.section_exit_data.keys():
+                dist_to_int = self.bot.point.distance_between_points(self.section_entry_data[n][0])
+                dist_to_exit = self.bot.point.distance_between_points(self.section_exit_data[n][0])
+                dist_in_int = self.section_entry_data[n][0].distance_between_points(self.section_exit_data[n][0])
+                last_con = (dist_to_int > dist_in_int) and (dist_to_exit < dist_in_int)
+                dist_dict[n] = self.dist_to_border(self.section_exit_data[n][1], self.section_exit_data[n][0], last_con)
+            return dist_dict
+        
          
         def mean_time_to_dist(self, bot:Bot, dist:float):
             if dist == None: return math.inf
@@ -527,21 +563,29 @@ class Intersection:
             self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit() + 0.20) # snabb fix
             
     
-    def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, sections:int = 4, bot_range:float = None):
+    def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, parts_in_x:int = 2, parts_in_y:int = 2, bot_range:float = None):
         self.name = name
         self.range = bot_range if not bot_range == None else max(abs(p1.x-p2.x),abs(p1.y-p2.y))*2#1.1
         self.p1 = p1
         self.p2 = p2
+        self.center_point = (p1+p2)*0.5
+        dx = abs((p2-p1).x)
+        dy = abs((p2-p1).y)
         self.parts = []
 
-        for n in range(sections):
-            dx_n = (p2-p1).x/math.sqrt(sections)
-            dy_n = (p2-p1).y/math.sqrt(sections)
-            center_point_n = p1 + Point(dx_n*(0.5+n%2), dy_n*(0.5+math.floor(n/2)))
-            self.parts.append(self.Intersection_section(center_point_n,dx_n,dy_n,n,theta))
+        self.obj = Object(self.center_point, theta, [Point(-dx/2,-dy/2),Point(-dx/2,dy/2),Point(dx/2,dy/2),Point(dx/2,-dy/2)])
         
-        #self.parts = [self.Intersection_section(p1,p2,n,theta) for n in range(4)]
+        part_x_length = abs((p2-p1).x)/parts_in_x
+        part_y_length = abs((p2-p1).y)/parts_in_y
+        
+        for y in range(parts_in_y):
+            for x in range(parts_in_x):
+                n = int(x + y*parts_in_x)
+                part_n_center_point = self.center_point + Point(-abs((p2-p1).x)/2+(part_x_length)*(x+0.5), -abs((p2-p1).y)/2+(part_y_length)*(y+0.5))
+                self.parts.append(self.Intersection_section(self, part_n_center_point, part_x_length, part_y_length, n, theta))
+        
         self.bot_params = ThreadSafeDict()
+        self.time_since_contact = 0
         
     
     def update(self):
@@ -563,15 +607,13 @@ class Intersection:
                     self.bot_params[bot.id].init_my_bot()
                  
     def remove_bot(self, bot:Bot):
-        with self.bot_params[bot.id].lock:
-            log(file, f"Removed bot with id", bot.id)
-            self.release_parts(bot)
-            del self.bot_params[bot.id]
+        log(file, f"Removed bot with id", bot.id)
+        del self.bot_params[bot.id]
 
     def claim_parts(self, bot:Bot):
-        if not bot.id in self.bot_params: return
+        if not bot.id in self.bot_params: return False
         with self.bot_params[bot.id].lock:
-            if not bot.id in self.bot_params: return
+            if not bot.id in self.bot_params: return False
             log(file, f"Claimes", f"bot {bot.id} want {self.bot_params[bot.id].intersection_sections}")
             parts = self.bot_params[bot.id].intersection_sections
             if parts == None: return False
@@ -593,23 +635,27 @@ class Intersection:
             in_intersection = in_intersection or part.obj.global_point_in_object(bot.point)
         return in_intersection
         
-    def heart_beat(self, status:str, receiver_id:int = None):
+    def heart_beat(self, status:str, **kwargs):
+        receiver_id = kwargs.get("id", None)
+        section = kwargs.get("section", "all")
+        
         if not my_id in self.bot_params: return
         mti = self.bot_params[my_id].mti
         mte = self.bot_params[my_id].time_to_exit
         intsec = self.bot_params[my_id].intersection_sections
+        prio = self.bot_params[my_id].my_priority
         if intsec == []: intsec = None
         
-        if status == "HB": msg = str([self.name,my_id,"HB",intsec,mti,mte])
-        if status == "ENTER": msg = str([self.name,my_id,"ENTER",intsec,mti,mte])
-        if status == "EXIT": msg = str([self.name,my_id,"EXIT"])
+        if status == "HB": msg = str([self.name,my_id,"HB",intsec,mti,mte,prio])
+        if status == "ENTER": msg = str([self.name,my_id,"ENTER",intsec,mti,mte,prio])
+        if status == "EXIT": msg = str([self.name,my_id,"EXIT", section])
         
         if receiver_id == None:
             for id in self.bot_params.keys():
                 if not id in ip.keys():continue
-                #print(id)
                 if id == my_id: continue
                 udp_client.send(ip[id], 2020, msg)
+                
         elif receiver_id in ip.keys():
             if not receiver_id in ip.keys():return
             udp_client.send(ip[receiver_id], 2020, msg)
@@ -621,10 +667,15 @@ class Intersection:
 
     def heart_beat_con(self) -> bool:
         los = False
+        max_time_diff = 0
         for param in self.bot_params.values():
             bot = param.bot
             if bot.id == my_id: continue
-            los = los or bot.loss_of_signal()
+            status, time_diff = bot.loss_of_signal()
+            if status and time_diff>max_time_diff:
+                max_time_diff = time_diff
+            los = los or status
+        self.time_since_contact = max_time_diff
         return not los 
           
     def sort_priority_bot_list(self, priority_list:list):
@@ -632,29 +683,31 @@ class Intersection:
         bot_list = []
         time_step = 1
         new_list = []
-        for mti,_, bot in priority_list:
+        for prio, mti, _, bot in priority_list:
             if mti_ref == None : 
-                bot_list.append(bot)
+                bot_list.append((prio, bot))
                 mti_ref = mti
                 continue
             if mti-mti_ref < time_step:
-                bot_list.append(bot)
+                bot_list.append((prio, bot))
             else:
-                new_list.extend(sorted(bot_list, key=lambda bot: bot.id))
+                new_list.extend([sublist[1] for sublist in sorted(bot_list, key=lambda data: (data[0], data[1].id))])
                 bot_list = []
-                bot_list.append(bot)
+                bot_list.append((prio, bot))
                 mti_ref = mti
-        new_list.extend(sorted(bot_list, key=lambda bot: bot.id))
+        new_list.extend([sublist[1] for sublist in sorted(bot_list, key=lambda data: (data[0], data[1].id))])
         return new_list
             
     def get_priority_bot(self):
         priority_bot_list = []
         for param in self.bot_params.values():
             bot = param.bot
-            mti = param.mti #if not param.mti == None else math.inf
+            mti = param.mti 
+            prio = param.my_priority
             if mti == None: continue
-            priority_bot_list.append((mti, bot.id, bot))
+            priority_bot_list.append((prio, mti, bot.id, bot))
             priority_bot_list.sort()
+            log(file, "priority bot list", priority_bot_list)
         return self.sort_priority_bot_list(priority_bot_list)
                     
     def bot_communication(self, msg:list):
@@ -669,20 +722,28 @@ class Intersection:
             params.intersection_sections = msg[2]
             params.mti = msg[3]
             params.time_to_exit = msg[4]
+            params.my_priority = msg[5]
             bots[id].last_update = time
         
         elif msg_type == "EXIT" : 
-            self.remove_bot(bots[id])
+            with self.bot_params[id].lock:
+                if msg[2] == "all":
+                    self.release_parts(bots[id])
+                    self.remove_bot(bots[id])
+                    
+                elif type(msg[2]) is int and msg[2] in range(len(self.parts)):
+                    params.intersection_sections.remove(msg[2])
+                    self.parts[msg[2]].release(bots[id])
+                    
             bots[id].last_update = time
 
         elif msg_type == "HB" : 
             params.intersection_sections = msg[2]
             params.mti = msg[3]
             params.time_to_exit = msg[4]
+            params.my_priority = msg[5]
             bots[id].last_update = time
-            
-
-        
+                    
         
     def intersection_ctrl(self):
         my_bot = bots[my_id]
@@ -696,32 +757,60 @@ class Intersection:
                     priority_list = self.get_priority_bot()
                     log(file, "Priority list", priority_list)
                     
+                    denied = []
+                    
                     for bot_index in range(len(priority_list)):
                         bot = priority_list[bot_index]
                         if self.claim_parts(bot):
                             if bot.id == my_id:
+                                
+                                if len(denied)>0:
+                                    for previous_bot in denied:
+                                        if any(section in self.bot_params[my_id].intersection_sections for section in self.bot_params[previous_bot.id].intersection_sections):
+                                            with self.bot_params[my_id].lock:
+                                                log(file, "Status", "Priority error")
+                                                self.release_parts(my_bot)
+                                                return
+                                
                                 log(file, "Status", "Entering")
                                 topic_handler.setSpeed(SPEED)
-                                if self.bot_params[my_id].dist_to_exit() == 0:
-                                    log(file, "Status", "Exiting")
-                                    self.heart_beat("EXIT")
-                                    self.remove_bot(my_bot)
-                                    return
+                                exit_dists = self.bot_params[my_id].dist_to_parts_exit()
+                                exit_parts = [(n in exit_dists.keys() and exit_dists[n]==0, n) for n in self.bot_params[my_id].intersection_sections]
+                                for exit_part in exit_parts:
+                                    if exit_part[0]:
+                                        log(file, "Exit part", exit_part[1])
+                                        with self.bot_params[my_id].lock:
+                                            n = exit_part[1]
+                                            self.heart_beat("EXIT", section=n)
+                                            self.parts[n].release(bots[my_id])
+                                            self.bot_params[my_id].intersection_sections.remove(n)
+                                            del self.bot_params[my_id].section_exit_data[n]
+                                            if len(self.bot_params[my_id].intersection_sections) == 0:
+                                                log(file, "Status", "Exiting")
+                                                self.heart_beat("EXIT")
+                                                self.release_parts(my_bot)
+                                                self.remove_bot(my_bot)
+                                                break
+                                return
                         else:
+                            denied.append(bot)
                             if bot.id == my_id:
                                 log(file, "Status", "Slowing down")
                                 params = self.bot_params[priority_list[bot_index-1].id]
                                 if params == None: return
+                                
                                 time_to_clear = params.time_to_exit
                                 if time_to_clear == None: return
+                                
                                 dist = self.bot_params[my_id].dist_to_entry()/1000 - 0.16 ## snabb fix
                                 new_vel = min(max(dist / time_to_clear, 0), SPEED)
-                                log(file, "Slowing down: ", f"dist: {(dist+0.16)*1000}, new_vel: {new_vel}")
                                 if new_vel <= 0.015: new_vel = 0
+                                
+                                log(file, "Slowing down: ", f"dist: {(dist+0.16)*1000}, new_vel: {new_vel}")
                                 topic_handler.setSpeed(new_vel)
                     return
             topic_handler.setSpeed(0)
-            log(file, "Status", "stoping, loss of signal with bots")
+            log(file, "Status", f"stoping, loss of signal with bots in {self.time_since_contact} seconds")
 
 
 
@@ -845,7 +934,10 @@ class UDP_server(threading.Thread):
 
 
 
-cooperative_controller = {"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605), 0, 4)}
+cooperative_controller = {
+                            "intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
+                            "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1)
+                         }
 
 def run():
     for controller in cooperative_controller.values():
@@ -853,8 +945,8 @@ def run():
 
 def wait_for_path(bot:Bot):
     try:
-        log(file, "Status", "waiting for path")
         if len(bot.path) > 0: return
+        log(file, "Status", "waiting for path")
         topic_handler.setSpeed(0)
         while not rospy.is_shutdown(): 
             if len(bot.path) > 0: 
