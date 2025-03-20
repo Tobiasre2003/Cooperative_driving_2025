@@ -320,8 +320,6 @@ class Bot:
         self.last_update = rospy.get_time()
         self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
         self.path = []
-        self.last_path_len = 0
-        
         self.time_to_bot_collision = {}
         
     def __str__(self):
@@ -355,12 +353,7 @@ class Bot:
         self.time_to_bot_collision[bot.id] = (collision_list[0]/1000)/self.absolute_speed # m / (m/s) = s
         bot.time_to_bot_collision[self.id] = (collision_list[0]/1000)/bot.absolute_speed
 
-    def new_path(self):
-        if (self.last_path_len < len(self.path)) and not self.last_path_len == 0:
-            self.last_path_len = len(self.path) # kanske flytta till param bot, kanske bara upptäcks av en intersection 
-            return True
-        return False
-        
+
    
 class Intersection:
     class Intersection_section:
@@ -579,6 +572,7 @@ class Intersection:
         dx = abs((p2-p1).x)
         dy = abs((p2-p1).y)
         self.parts = []
+        self.new_path = False
 
         self.obj = Object(self.center_point, theta, [Point(-dx/2,-dy/2),Point(-dx/2,dy/2),Point(dx/2,dy/2),Point(dx/2,-dy/2)])
         
@@ -596,8 +590,9 @@ class Intersection:
         
     
     def update(self):
-        if bots[my_id].new_path() and my_id in self.bot_params:
+        if self.new_path and my_id in self.bot_params:
             with self.bot_params[my_id].lock:
+                self.new_path = False
                 self.remove_bot(bots[my_id])
                 return
             
@@ -833,6 +828,7 @@ class Intersection:
 class Ros_topic_handler:
     def __init__(self):
         self.publisher = rospy.Publisher('gv_laptop', LaptopSpeed, queue_size=10)
+        self.last_path_len = 0
         rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
         rospy.Subscriber('status', Status, self.status)
         rospy.Subscriber('path', Polygon, self.path)
@@ -854,11 +850,16 @@ class Ros_topic_handler:
         bots[my_id].right_speed = status_msg.speed_front_right/2
         bots[my_id].add_speed((bots[my_id].right_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
 
-    def path(self, path_msg:Polygon):
-        bots[my_id].last_path_len = len(bots[my_id].path)
+    def path(self, path_msg:Polygon):                
         path = []
         for point in path_msg.points:
             path.append(Point(point.x,point.y))
+        
+        if (self.last_path_len < len(path)):
+            self.last_path_len = len(path) 
+            for ctrl in cooperative_controller.values():
+                ctrl.new_path = True    
+        
         bots[my_id].path = path
     
     def setSpeed(self, speed:float):
