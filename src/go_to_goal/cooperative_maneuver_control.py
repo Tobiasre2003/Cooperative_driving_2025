@@ -13,6 +13,7 @@ import math
 import os
 import datetime
 import time
+import pickle
 
 rospy.init_node('cooperative_maneuver_control', anonymous=True)
 rospy.loginfo("Starting cooperative_maneuver_control node")
@@ -506,6 +507,7 @@ class Intersection:
         def dist_to_border(self, dist_list:list, last_point:Point, last_con:bool):
             try:
                 index = int(self.start_path_len-len(self.bot.path))
+                log(file, "dist_to_border", f"len dist list: {len(dist_list)}, index: {index}, last con: {last_con}")
                 if index > len(dist_list) : 
                     return 0
                 dist_list = dist_list[index:]
@@ -542,8 +544,9 @@ class Intersection:
         def mean_time_to_dist(self, bot:Bot, dist:float):
             if dist == None: return math.inf
             dist = dist/1000
-            speed = bot.absolute_speed
+            speed = max(bot.absolute_speed, 0) #if abs(bot.absolute_speed) < 0.01 else 0
             acc = bot.acceleration
+            log(file, "mti", f"speed: {speed}, dist: {dist}")
             # if not acc==0:
             #     
             #     mti = (-speed + math.sqrt(speed**2 + 2*acc*dist))/acc
@@ -592,6 +595,7 @@ class Intersection:
     def update(self):
         if self.new_path and my_id in self.bot_params:
             with self.bot_params[my_id].lock:
+                log(file, f"{self.name}", f"new path : {bots[my_id].path}")
                 self.new_path = False
                 self.remove_bot(bots[my_id])
                 return
@@ -654,9 +658,9 @@ class Intersection:
         prio = self.bot_params[my_id].my_priority
         if intsec == []: intsec = None
         
-        if status == "HB": msg = str([self.name,my_id,"HB",intsec,mti,mte,prio])
-        if status == "ENTER": msg = str([self.name,my_id,"ENTER",intsec,mti,mte,prio])
-        if status == "EXIT": msg = str([self.name,my_id,"EXIT", section])
+        if status == "HB": msg = [self.name,my_id,"HB",intsec,mti,mte,prio]
+        if status == "ENTER": msg = [self.name,my_id,"ENTER",intsec,mti,mte,prio]
+        if status == "EXIT": msg = [self.name,my_id,"EXIT", section]
         
         if receiver_id == None:
             for id in self.bot_params.keys():
@@ -696,17 +700,17 @@ class Intersection:
         new_list = []
         for prio, mti, _, bot in priority_list:
             if mti_ref == None : 
-                bot_list.append((prio, bot))
+                bot_list.append((prio, bot, mti))
                 mti_ref = mti
                 continue
             if mti-mti_ref < time_step:
-                bot_list.append((prio, bot))
+                bot_list.append((prio, bot, mti))
             else:
-                new_list.extend([sublist[1] for sublist in sorted(bot_list, key=lambda data: (data[0], data[1].id))])
+                new_list.extend([sublist[1] for sublist in sorted(bot_list, key=lambda data: (not data[2]==0, data[0], data[1].id))])
                 bot_list = []
-                bot_list.append((prio, bot))
+                bot_list.append((prio, bot, mti))
                 mti_ref = mti
-        new_list.extend([sublist[1] for sublist in sorted(bot_list, key=lambda data: (data[0], data[1].id))])
+        new_list.extend([sublist[1] for sublist in sorted(bot_list, key=lambda data: (not data[2]==0, data[0], data[1].id))])
         return new_list
             
     def get_priority_bot(self):
@@ -765,7 +769,7 @@ class Intersection:
                 
                 if self.heart_beat_con():
                     priority_list = self.get_priority_bot()
-                    log(file, f"{self.name}", f"priority list: {priority_list}")
+                    log(file, f"{self.name}", f"priority list: {[{'id': bot.id, 'mti': self.bot_params[bot.id].mti} for bot in priority_list]}")
                     
                     denied = []
                     
@@ -776,16 +780,20 @@ class Intersection:
                                 
                                 if len(denied)>0:
                                     for previous_bot in denied:
-                                        if any(section in self.bot_params[my_id].intersection_sections for section in self.bot_params[previous_bot.id].intersection_sections):
-                                            with self.bot_params[my_id].lock:
-                                                log(file, f"{self.name}", "Priority error")
-                                                self.release_parts(my_bot)
-                                                return
+                                        try:
+                                            with self.bot_params[previous_bot.id].lock:
+                                                if any(section in self.bot_params[my_id].intersection_sections for section in self.bot_params[previous_bot.id].intersection_sections):
+                                                    log(file, f"{self.name}", "Priority error")
+                                                    self.release_parts(my_bot)
+                                                    return
+                                        except AttributeError:
+                                            continue
                                 
                                 log(file, f"{self.name}", "Entering")
                                 topic_handler.setSpeed(SPEED)
                                 exit_dists = self.bot_params[my_id].dist_to_parts_exit()
                                 exit_parts = [(n in exit_dists.keys() and exit_dists[n]==0, n) for n in self.bot_params[my_id].intersection_sections]
+                                log(file, "exit_parts", exit_parts)
                                 for exit_part in exit_parts:
                                     if exit_part[0]:
                                         log(file, f"{self.name}", f"exit part {exit_part[1]}")
@@ -854,13 +862,16 @@ class Ros_topic_handler:
         path = []
         for point in path_msg.points:
             path.append(Point(point.x,point.y))
+            
+        bots[my_id].path = path
         
         if (self.last_path_len < len(path)):
-            self.last_path_len = len(path) 
+            log(file, "new path", path)
             for ctrl in cooperative_controller.values():
                 ctrl.new_path = True    
+        self.last_path_len = len(path) 
         
-        bots[my_id].path = path
+        
     
     def setSpeed(self, speed:float):
         log(file, "Setting speed", f"{speed} m/s")
@@ -874,9 +885,11 @@ class UDP_client:
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
-    def send(self, adress:str, port:int, msg:str):
-        log(file, "Sending", f"{msg} to {adress}")
-        self.sock.sendto(msg.encode(), (adress, port))
+    def send(self, adress:str, port:int, msg):
+        #msg = str(msg)
+        log(file, "Sending", f"{str(msg)} to {adress}")
+        msg = pickle.dumps(msg)
+        self.sock.sendto(msg, (adress, port))
     
     def close(self):
         self.sock.close()
@@ -897,7 +910,7 @@ class UDP_server(threading.Thread):
         while self.running:
             try:
                 data, sender_adress = self.sock.recvfrom(4096)
-                data = data.decode()
+                #data = data.decode()
                 self.handler(data)
             except socket.timeout:
                 continue
@@ -908,8 +921,8 @@ class UDP_server(threading.Thread):
         self.running = False
         self.sock.close()
         
-    def handler(self, data:str):
-        try: data_list = self.to_list(data)
+    def handler(self, data):
+        try: data_list = pickle.loads(data) #self.to_list(data)
         except: return
         log(file, "Data from udp", data_list)
         cooperative_controller[data_list[0]].bot_communication(data_list[1:])  
@@ -953,7 +966,7 @@ class UDP_server(threading.Thread):
 
 cooperative_controller = {
                             "intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
-                            "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1800)
+                            "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1000)
                          }
 
 def run():
