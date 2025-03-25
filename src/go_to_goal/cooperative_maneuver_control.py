@@ -507,7 +507,6 @@ class Intersection:
         def dist_to_border(self, dist_list:list, last_point:Point, last_con:bool):
             try:
                 index = int(self.start_path_len-len(self.bot.path))
-                log(file, "dist_to_border", f"len dist list: {len(dist_list)}, index: {index}, last con: {last_con}")
                 if index > len(dist_list) : 
                     return 0
                 dist_list = dist_list[index:]
@@ -544,16 +543,14 @@ class Intersection:
         def mean_time_to_dist(self, bot:Bot, dist:float):
             if dist == None: return math.inf
             dist = dist/1000
-            speed = max(bot.absolute_speed, 0) #if abs(bot.absolute_speed) < 0.01 else 0
-            acc = bot.acceleration
-            log(file, "mti", f"speed: {speed}, dist: {dist}")
-            # if not acc==0:
-            #     
+            speed = max(bot.absolute_speed, 0) 
+            # acc = bot.acceleration
+            # if not acc==0:   
             #     mti = (-speed + math.sqrt(speed**2 + 2*acc*dist))/acc
             if not speed == 0:
                 mti = dist/speed
             else:
-                mti = math.inf
+                mti = math.inf #dist/0.01
             return mti
         
         def __getattribute__(self, name):
@@ -591,19 +588,23 @@ class Intersection:
         self.bot_params = ThreadSafeDict()
         self.los_data = (None, None)
         
-    
     def update(self):
-        if self.new_path and my_id in self.bot_params:
-            with self.bot_params[my_id].lock:
-                log(file, f"{self.name}", f"new path : {bots[my_id].path}")
-                self.new_path = False
-                self.remove_bot(bots[my_id])
-                return
+        if self.new_path:
+            try:
+                with self.bot_params[my_id].lock:
+                    log(file, f"{self.name}", f"new path : {bots[my_id].path}")
+                    self.new_path = False
+                    self.remove_bot(bots[my_id])
+                    return
+            except AttributeError: 
+                pass
             
         self.bots_in_range()
+        
+        if self.in_range(bots[my_id]): self.heart_beat("HB")
+        
         if self.conecondition_one():
             self.bot_params[my_id].update_times()
-            self.heart_beat("HB")
             self.intersection_ctrl()
     
     def in_range(self, bot:Bot, max_range:float = None):
@@ -758,7 +759,26 @@ class Intersection:
             params.my_priority = msg[5]
             bots[id].last_update = time
                     
-        
+    def check_claims(self, priority_list):
+        claims = [part.claimed for part in self.parts]
+        not_done = True
+        for bot in priority_list:
+            
+                if not_done:
+                    if bot.id in claims:
+                        not_done = True
+                    else:
+                        not_done = False
+                
+                if not not_done: 
+                    if bot.id in claims:
+                        try:
+                            with self.bot_params[bot.id].lock:
+                                log(file, f"{self.name}", f"priority error bot {bot.id}")
+                                self.release_parts(bot)
+                        except AttributeError:
+                            continue
+
     def intersection_ctrl(self):
         my_bot = bots[my_id]
         if self.in_range(my_bot, self.entry_range) and self.conecondition_one(): 
@@ -771,29 +791,17 @@ class Intersection:
                     priority_list = self.get_priority_bot()
                     log(file, f"{self.name}", f"priority list: {[{'id': bot.id, 'mti': self.bot_params[bot.id].mti} for bot in priority_list]}")
                     
-                    denied = []
+                    self.check_claims(priority_list)
                     
                     for bot_index in range(len(priority_list)):
                         bot = priority_list[bot_index]
                         if self.claim_parts(bot):
                             if bot.id == my_id:
-                                
-                                if len(denied)>0:
-                                    for previous_bot in denied:
-                                        try:
-                                            with self.bot_params[previous_bot.id].lock:
-                                                if any(section in self.bot_params[my_id].intersection_sections for section in self.bot_params[previous_bot.id].intersection_sections):
-                                                    log(file, f"{self.name}", "Priority error")
-                                                    self.release_parts(my_bot)
-                                                    return
-                                        except AttributeError:
-                                            continue
-                                
                                 log(file, f"{self.name}", "Entering")
                                 topic_handler.setSpeed(SPEED)
                                 exit_dists = self.bot_params[my_id].dist_to_parts_exit()
                                 exit_parts = [(n in exit_dists.keys() and exit_dists[n]==0, n) for n in self.bot_params[my_id].intersection_sections]
-                                log(file, "exit_parts", exit_parts)
+
                                 for exit_part in exit_parts:
                                     if exit_part[0]:
                                         log(file, f"{self.name}", f"exit part {exit_part[1]}")
@@ -811,7 +819,7 @@ class Intersection:
                                                 break
                                 return
                         else:
-                            denied.append(bot)
+                            
                             if bot.id == my_id:
                                 log(file, f"{self.name}", "Slowing down")
                                 params = self.bot_params[priority_list[bot_index-1].id]
@@ -869,6 +877,8 @@ class Ros_topic_handler:
             log(file, "new path", path)
             for ctrl in cooperative_controller.values():
                 ctrl.new_path = True    
+        else:
+            log(file, "path update", path)
         self.last_path_len = len(path) 
         
         
@@ -886,7 +896,6 @@ class UDP_client:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     def send(self, adress:str, port:int, msg):
-        #msg = str(msg)
         log(file, "Sending", f"{str(msg)} to {adress}")
         msg = pickle.dumps(msg)
         self.sock.sendto(msg, (adress, port))
@@ -910,7 +919,6 @@ class UDP_server(threading.Thread):
         while self.running:
             try:
                 data, sender_adress = self.sock.recvfrom(4096)
-                #data = data.decode()
                 self.handler(data)
             except socket.timeout:
                 continue
@@ -922,51 +930,16 @@ class UDP_server(threading.Thread):
         self.sock.close()
         
     def handler(self, data):
-        try: data_list = pickle.loads(data) #self.to_list(data)
+        try: data_list = pickle.loads(data)
         except: return
         log(file, "Data from udp", data_list)
         cooperative_controller[data_list[0]].bot_communication(data_list[1:])  
         
-    def isfloat(self, num):
-        try:
-            float(num)
-            return True
-        except ValueError:
-            return False
-
-    def to_list(self, string:str):
-        string = string[1:-1]
-        str_element = ""
-        arr = []
-        block = 0
-        for j in range(len(string)):
-            if string[j]=="[": block+=1
-            if string[j]=="]": block-=1
-            if string[j] == "," and block == 0:
-                arr.append(str_element)
-                str_element="" 
-                continue
-            str_element+=string[j]
-        arr.append(str_element)
-        for i in range(len(arr)):
-            element = arr[i]
-            if i != 0:element=element[1:]
-            if "[" in element: element = self.to_list(element)
-            elif element.isdigit(): element = int(element)
-            elif self.isfloat(element): element = float(element)
-            elif element == "False": element = False
-            elif element == "True": element = True
-            elif element == "None": element = None
-            else: element = element[1:-1]
-            arr[i] = element
-        return arr
-    
-
 
 
 cooperative_controller = {
                             "intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
-                            "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1000)
+                            "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1400)
                          }
 
 def run():
