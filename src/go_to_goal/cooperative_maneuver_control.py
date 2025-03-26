@@ -574,8 +574,9 @@ class Intersection:
             self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit() + 0.20) # snabb fix
             
     
-    def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, parts_in_x:int = 2, parts_in_y:int = 2, bot_range:float = None, entry_range:float = None):
+    def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, parts_in_x:int = 2, parts_in_y:int = 2, group_name:str = None, bot_range:float = None, entry_range:float = None):
         self.name = name
+        self.group_name = group_name
         self.range = bot_range if not bot_range == None else max(abs(p1.x-p2.x),abs(p1.y-p2.y))*2
         self.entry_range = entry_range if not entry_range == None else self.range/2
         self.p1 = p1
@@ -618,6 +619,9 @@ class Intersection:
         if self.conecondition_one():
             self.bot_params[my_id].update_times()
             self.intersection_ctrl()
+    
+    def set_new_path(self):
+        self.new_path = True
     
     def in_range(self, bot:Bot, max_range:float = None):
         if max_range == None: max_range = self.range
@@ -671,9 +675,12 @@ class Intersection:
         prio = self.bot_params[my_id].my_priority
         if intsec == []: intsec = None
         
-        if status == "HB": msg = [self.name,my_id,"HB",intsec,mti,mte,prio]
-        if status == "ENTER": msg = [self.name,my_id,"ENTER",intsec,mti,mte,prio]
-        if status == "EXIT": msg = [self.name,my_id,"EXIT", section]
+        msg = []
+        if not self.group_name == None: msg = [self.group_name]
+        
+        if status == "HB": msg.extend([self.name,my_id,"HB",intsec,mti,mte,prio])
+        if status == "ENTER": msg.extend([self.name,my_id,"ENTER",intsec,mti,mte,prio])
+        if status == "EXIT": msg.extend([self.name,my_id,"EXIT", section])
         
         if receiver_id == None:
             for id in self.bot_params.keys():
@@ -876,9 +883,28 @@ class Cruise_control:
         return min_dist
 
     def set_speed_lim(self, speed):
-        log(file, "setting speed lim", speed)
         topic_handler.set_speed_lim(speed)
         topic_handler.setSpeed(topic_handler.last_speed)
+
+class Roundabout:
+    def __init__(self, name, entry_section_points:list):
+        self.name = name
+        self.entry_sections = {}
+        for i in range(len(entry_section_points)):
+            points = entry_section_points[i]
+            self.entry_sections["entry_"+str(i)] = Intersection("entry_"+str(i), points[0], points[1], 0, 1, 1, self.name)  
+        
+    def update(self):
+        for intersection in self.entry_sections.values():
+            intersection.update()
+            
+    def set_new_path(self):
+        for intersection in self.entry_sections.values():
+            intersection.set_new_path()
+            
+    def bot_communication(self, msg):
+        self.entry_sections[msg[0]].bot_communication(msg[1:])
+        
 
 
 class Ros_topic_handler:
@@ -918,7 +944,7 @@ class Ros_topic_handler:
         if (self.last_path_len < len(path)):
             log(file, "new path", path)
             for ctrl in cooperative_controller.values():
-                ctrl.new_path = True    
+                ctrl.set_new_path() 
         else:
             log(file, "path update", path)
         self.last_path_len = len(path) 
@@ -985,8 +1011,9 @@ class UDP_server(threading.Thread):
 
 cooperative_controller = {
                             #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
-                            #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1400),
-                            "merging 1":Intersection("merging 1", Point(654,5765), Point(2023,6237),0,1,1,4000,2800)
+                            #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400),
+                            #"merging 1":Intersection("merging 1", Point(654,5765), Point(2023,6237),0,1,1,None,4000,2800),
+                            "roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]])
                          }
 
 cruise_control = Cruise_control(0.5)
