@@ -304,6 +304,7 @@ class Object:
         
     def global_point_in_object(self, global_point:Point):
         local_point = self.point_from_globl_to_local(global_point)
+        local_point = Point(local_point.y, local_point.x)
         prev_point = self.borders[-1]
         sign = 0
         for point in self.borders:
@@ -838,6 +839,7 @@ class Intersection:
                                 
                                 time_to_clear = params.time_to_exit
                                 if time_to_clear == None: return
+                                time_to_clear += 1
                                 
                                 dist = self.bot_params[my_id].dist_to_entry()/1000 - 0.16 ## snabb fix
                                 new_vel = min(max(dist / time_to_clear, 0), SPEED)
@@ -982,11 +984,12 @@ class UDP_server(threading.Thread):
 
 
 cooperative_controller = {
-                            "intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
-                            "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1400)
+                            #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
+                            #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1400),
+                            "merging 1":Intersection("merging 1", Point(654,5765), Point(2023,6237),0,1,1,4000,2800)
                          }
 
-cruise_control = Cruise_control(1)
+cruise_control = Cruise_control(0.5)
 
 def run():
     for controller in cooperative_controller.values():

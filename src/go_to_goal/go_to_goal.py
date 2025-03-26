@@ -19,6 +19,29 @@ from gv_client.msg import GulliViewPosition, LaptopSpeed
 
 from roswifibot.msg import IR
 
+##############################
+# import os
+# import datetime
+# def init_log():
+#     directory = os.path.dirname(os.path.abspath(__file__))
+#     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+#     filename = f"go_to_goal_log_{timestamp}.txt"
+#     filepath = os.path.join(directory, filename)
+#     i = 1
+#     while os.path.exists(filepath):
+#         filename = f"log_{timestamp}_{i}.txt"
+#         filepath = os.path.join(directory, filename)
+#         i += 1
+#     with open(filepath, "w") as file:
+#         file.write("Data\n")
+#     return filepath
+        
+# def log(filepath, name:str, data):
+#     time = datetime.datetime.now().strftime("%M-%S-%f")
+#     data = str(data)
+#     with open(filepath, "a") as file:
+#         file.write(f"Time: {time}, {name}: {data}\n")
+##############################
 
 
 SPEED = 0.3
@@ -40,7 +63,7 @@ ORIGIN_POINT = [Point(2000, 9000, 0)]
 #RAMP_PATH = [Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1711, 6332, 0), Point(1640, 5900, 0), Point(1180, 4260, 0), Point(1033, 2168, 0)]
 
 # Less points
-RAMP_PATH = [Point(3702, 8547, 0), Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1033, 3000, 0)]
+RAMP_PATH = [Point(3702, 8547, 0), Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1750, 6000, 0), Point(1440, 4500, 0), Point(1033, 3000, 0)]
 #Point(2502, 7850, 0),         Point(3320, 3200, 0),
 LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 5600, 0), Point(3320, 6000, 0), Point(3702, 6847, 0), Point(3452, 8247, 0), Point(3702, 8247, 0) ]
 #LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 3500, 0), Point(3320, 4600, 0), Point(3320, 5600, 0), Point(3320, 6600, 0), Point(3702, 8547, 0), Point(2502, 7850, 0), Point(3702, 8547, 0) ]
@@ -49,36 +72,48 @@ LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 5600, 0), Point(3320, 6000, 
 # MAIN_PATH = [Point(480, 8400, 0), Point(480, 7400, 0), Point(500, 6400, 0), Point(480, 5400, 0), Point(450, 4400, 0), Point(500, 3400, 0), Point(500, 2400, 0), Point(480, 2100, 0)]
 
 # Merging main road path, right lane
-MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Point(900, 5400, 0), Point(900, 4400, 0), Point(900, 3400, 0), Point(900, 3000, 0)]
+MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Point(900, 5800, 0), Point(900, 4400, 0), Point(900, 3400, 0), Point(900, 3000, 0)]
 
 LOOP_MAIN_PATH = [Point(3320, 2800, 0),  Point(3320, 5600, 0), Point(3320, 6000, 0), Point(2630, 8100, 0), Point(870, 8361, 0), Point(830, 8361, 0) ]
 
-INTERSECTION_PATH = [Point(1200, 8200, 0), Point(2200, 6800, 0), Point(3200, 5400, 0),
-                     Point(2200, 4600, 0), Point(1200, 5400, 0), Point(2200, 6800, 0),
-                     Point(3200, 8200, 0), Point(2200, 9000, 0)]
+
+
+# INTERSECTION_PATH = [Point(2200, 8200, 0), Point(1200, 8200, 0), Point(2200, 6800, 0), Point(3200, 5400, 0),
+#                      Point(2200, 4600, 0), Point(1200, 5400, 0), Point(2200, 6800, 0),
+#                      Point(3200, 8200, 0), Point(2200, 9000, 0)]
+
+INTERSECTION_EIGHT = [Point(2200, 4600, 0), Point(1200, 5400, 0),Point(1800, 6200, 0), Point(2200, 6800, 0), Point(3200, 8200, 0),
+                     Point(2200, 9000, 0), Point(1200, 8200, 0), Point(1800, 7400, 0), Point(2200, 6800, 0),
+                     Point(3200, 5400, 0), Point(2200, 5400, 0)]
 
 
 INTERSECTION_PATH_1 = [Point(3968,7741,0),Point(4000, 5735, 0), Point(3968, 4200,0), Point(3968, 3552, 0), Point(2914, 3552, 0), Point(1852, 3500,0)]
 INTERSECTION_PATH_2 = [Point(3382, 411, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0)]
-
+INTERSECTION_PATH_3 = [Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,411,0)]
+INTERSECTION_PATH_23 = [Point(3382, 411, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0),
+                        Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,411,0)]
 
 PATH = []
 PATHS = {
         'origin' : ORIGIN_POINT,
         'ramp' : RAMP_PATH,
         'main' : MAIN_PATH,
-        'intersection' : INTERSECTION_PATH,
+        'intersection' : INTERSECTION_EIGHT, #'intersection' : INTERSECTION_PATH,
 	'intersection_1': INTERSECTION_PATH_1,
-	'intersection_2': INTERSECTION_PATH_2
+	'intersection_2': INTERSECTION_PATH_2,
+    'intersection_3': INTERSECTION_PATH_3,
+    'intersection_23': INTERSECTION_PATH_23
         }
 
 LOOP_PATHS = {
         'origin' : ORIGIN_POINT,
         'ramp' : LOOP_RAMP_PATH,
         'main' : LOOP_MAIN_PATH,
-        'intersection' : INTERSECTION_PATH,
+        'intersection' : INTERSECTION_EIGHT,#'intersection' : INTERSECTION_PATH,
 	'intersection_1': INTERSECTION_PATH_1,
-	'intersection_2': INTERSECTION_PATH_2	
+	'intersection_2': INTERSECTION_PATH_2,
+    'intersection_3': INTERSECTION_PATH_3,
+    'intersection_23': INTERSECTION_PATH_23
         }
 
 KP = 1
@@ -147,7 +182,7 @@ class GoToGoalNode:
 
 
         self.publisher = rospy.Publisher('cmd_vel', Twist, queue_size=1)
-        self.path_publisher = rospy.Publisher('path', Polygon, queue_size=3)
+        self.path_publisher = rospy.Publisher('path', Polygon, queue_size=1)
 
         self.speed = SPEED
         self.omega = 0
@@ -209,15 +244,17 @@ class GoToGoalNode:
         if ((self.dest.x + ERROR_RANGE) > self.x > (self.dest.x - ERROR_RANGE)
                 and (self.dest.y + ERROR_RANGE) > self.y > (self.dest.y - ERROR_RANGE)):
             self.i += 1
-            self.pub_path(PATH[self.i:])
+
             print("REACHED POINT", self.i)
             if self.i < len(PATH):
                 self.dest = PATH[self.i]
             if self.i >= len(PATH):
-                print("ENTERED LOOP PATH", self.i)
+                print("ENTERED LOOP PATH", self.loopi)
                 self.dest = LOOP_PATH[self.loopi]
                 self.loopi += 1
-
+                
+            # log(file, "dest", self.dest)
+            # log(file, "i, loopi", (self.i, self.loopi))
             
         else:
              #max_omega  = self.pid.update(pi, False)
@@ -418,17 +455,24 @@ class PID:
         return res
 
 
+
 if __name__ == '__main__': 
     set_delay = False
     PATH = PATHS[sys.argv[1]]
     LOOP_PATH = LOOP_PATHS[sys.argv[1]]
-    my_id = 4
+    my_id = 5
     node = GoToGoalNode()
-    
+    #file = init_log()
     rospy.on_shutdown(node.shutdown)
     while not rospy.is_shutdown():
         #if (node.i < len(PATH)):
-        node.pub_path(PATH[node.i:])
+        
+        if node.i < len(PATH):
+            node.pub_path(PATH[node.i:])
+            #log(file, "PATH", PATH[node.i:])
+        else:
+            node.pub_path(LOOP_PATH[node.loopi-1:])
+            #log(file, "LOOP_PATH", LOOP_PATH[node.loopi-1:])
         
         if not node.last_gv_update == None and rospy.get_time()-node.last_gv_update > 2:
             print("=== LOST CONTACT WITH GULLIVIEW! ===")
