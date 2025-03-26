@@ -178,12 +178,12 @@ class Object:
         self.direction = theta
         
     def rotation_matrix(self, sign:int = 1) -> tuple:
-        return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
+        return (Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)), Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)))
     
     def get_global_velocity_vector(self):
         rotation_matrix = self.rotation_matrix(-1)
         x = rotation_matrix[0].dot_product(self.velocity_vector)
-        y = rotation_matrix[1].dot_product(self.velocity_vector)
+        y = -rotation_matrix[1].dot_product(self.velocity_vector)
         return Vector(x, y).get_unit_vector()
     
     def point_from_local_to_global(self, local_point:Point) -> Point:
@@ -245,7 +245,7 @@ class Object:
         for point in self.from_globl_to_local(obj.from_local_to_global()):
             dist_from_vector_1 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p1)
             dist_from_vector_2 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p2)
- 
+            
             if dist_from_vector_1*dist_from_vector_2>0: 
                 if sign==0: sign = math.copysign(1,dist_from_vector_1)
                 if sign != math.copysign(1,dist_from_vector_1):
@@ -287,11 +287,20 @@ class Object:
         
         self_vel = self.get_global_velocity_vector()
         obj_vel = obj.get_global_velocity_vector()
-    
+        
         crossing_point_1 = self.crossing_vector(self_p1, obj_p2, self_vel, obj_vel)
         crossing_point_2 = self.crossing_vector(self_p2, obj_p1, self_vel, obj_vel)
-
-        return front_point.distance_between_points(crossing_point_1), front_point.distance_between_points(crossing_point_2)
+        
+        sign_1 = math.copysign(1, self_vel.scalar_projection(crossing_point_1-self.pos))
+        sign_2 = math.copysign(1, self_vel.scalar_projection(crossing_point_2-self.pos))
+        
+        dist_1 = max(front_point.distance_between_points(crossing_point_1)-200, 0)
+        dist_2 = max(front_point.distance_between_points(crossing_point_2)-200, 0)
+        
+        if sign_1 < 0: dist_1 = math.inf 
+        if sign_2 < 0: dist_2 = math.inf
+        
+        return dist_1, dist_2
         
     def global_point_in_object(self, global_point:Point):
         local_point = self.point_from_globl_to_local(global_point)
@@ -321,7 +330,7 @@ class Bot:
         self.last_update = rospy.get_time()
         self.obj = Object(self.point, self.theta, [Point(210,160),Point(-210,160),Point(-210,-160),Point(210,-160)], Vector(0,1))
         self.path = []
-        self.time_to_bot_collision = {}
+        self.dist_to_bot_collision = {}
         
     def __str__(self):
         return f"id: {self.id}, pos; {self.point}, speed: {self.absolute_speed}"
@@ -348,11 +357,13 @@ class Bot:
     
     def update_collision_point(self, bot):
         dist = self.obj.collision_course(bot.obj)
-        dist1, dist2 = self.obj.moving_collision_course(bot.obj)
-        collision_list = [dist, dist1, dist2]
-        collision_list = sorted(collision_list, key=lambda x: (x is None, x))
-        self.time_to_bot_collision[bot.id] = (collision_list[0]/1000)/self.absolute_speed # m / (m/s) = s
-        bot.time_to_bot_collision[self.id] = (collision_list[0]/1000)/bot.absolute_speed
+        if dist == None: dist = math.inf
+
+        try: self.dist_to_bot_collision[bot.id] = (dist/1100) 
+        except ZeroDivisionError: self.dist_to_bot_collision[bot.id] = math.inf
+        
+        try: bot.dist_to_bot_collision[self.id] = (dist/1100)
+        except ZeroDivisionError: bot.dist_to_bot_collision[self.id] = math.inf
 
 
    
@@ -839,12 +850,41 @@ class Intersection:
             log(file, f"{self.name}", f"stoping, loss of signal with bot {self.los_data[1]} for {self.los_data[0]} seconds")
 
 
+class Cruise_control:
+    def __init__(self, dist_lim:float = 1):
+        self.dist_lim = dist_lim
+    
+    def update(self):
+        self.update_collision_risk()
+        dist = self.dist_to_collision()
+        dist_diff = dist - self.dist_lim
+        new_lim = topic_handler.max_speed + (dist_diff*0.01)
+        self.set_speed_lim(new_lim)
+
+    def update_collision_risk(self):
+        for bot in bots.values():
+            if bot.id == my_id: continue
+            bots[my_id].update_collision_point(bot)
+           
+    def dist_to_collision(self):
+        min_dist = math.inf
+        for bot_id in bots[my_id].dist_to_bot_collision.keys():
+            if min_dist > bots[my_id].dist_to_bot_collision[bot_id]:
+                min_dist = bots[my_id].dist_to_bot_collision[bot_id]
+        return min_dist
+
+    def set_speed_lim(self, speed):
+        log(file, "setting speed lim", speed)
+        topic_handler.set_speed_lim(speed)
+        topic_handler.setSpeed(topic_handler.last_speed)
 
 
 class Ros_topic_handler:
     def __init__(self):
         self.publisher = rospy.Publisher('gv_laptop', LaptopSpeed, queue_size=10)
         self.last_path_len = 0
+        self.max_speed = SPEED
+        self.last_speed = 0
         rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
         rospy.Subscriber('status', Status, self.status)
         rospy.Subscriber('path', Polygon, self.path)
@@ -881,14 +921,18 @@ class Ros_topic_handler:
             log(file, "path update", path)
         self.last_path_len = len(path) 
         
-        
-    
     def setSpeed(self, speed:float):
-        log(file, "Setting speed", f"{speed} m/s")
+        self.last_speed = speed
         header = Header()
         header.stamp = rospy.Time.now()
+        speed = min(speed, self.max_speed)
+        log(file, "Setting speed", f"{speed} m/s")
         msg = LaptopSpeed(header=header, tag_id=my_id, speed=speed, restart=False)
         self.publisher.publish(msg)
+        
+    def set_speed_lim(self, lim):
+        self.max_speed = max(min(lim, SPEED), 0)
+        
     
     
 class UDP_client:
@@ -942,9 +986,13 @@ cooperative_controller = {
                             "eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,2600,1400)
                          }
 
+cruise_control = Cruise_control(1)
+
 def run():
     for controller in cooperative_controller.values():
         controller.update()
+    cruise_control.update()
+                                
 
 def wait_for_path(bot:Bot):
     try:
