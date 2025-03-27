@@ -63,8 +63,8 @@ ORIGIN_POINT = [Point(2000, 9000, 0)]
 #RAMP_PATH = [Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1711, 6332, 0), Point(1640, 5900, 0), Point(1180, 4260, 0), Point(1033, 2168, 0)]
 
 # Less points
-RAMP_PATH = [Point(3702, 8547, 0), Point(3702, 8547, 0), Point(2054, 7150, 0), Point(1750, 6000, 0),
-             Point(1440, 4500, 0), Point(1033, 3000, 0)]
+RAMP_PATH = [Point(3702, 8547, 0), Point(1798, 6626, 0), Point(1221, 4988, 0),Point(900, 3895, 0), Point(900, 3000, 0)]
+
 #Point(2502, 7850, 0),         Point(3320, 3200, 0),
 LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 5600, 0), Point(3320, 6000, 0), Point(3702, 6847, 0),
                   Point(3452, 8247, 0), Point(3702, 8247, 0) ]
@@ -81,7 +81,7 @@ ROUNDABOUT2 = [Point(2888, 1215, 0), Point(3369,1938, 0), Point(3326, 2819, 0), 
 # MAIN_PATH = [Point(480, 8400, 0), Point(480, 7400, 0), Point(500, 6400, 0), Point(480, 5400, 0), Point(450, 4400, 0), Point(500, 3400, 0), Point(500, 2400, 0), Point(480, 2100, 0)]
 
 # Merging main road path, right lane
-MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Point(900, 5800, 0),
+MAIN_PATH = [Point(900, 8400, 0), Point(900, 7400, 0), Point(900, 6400, 0), Point(900, 4973, 0),
              Point(900, 4400, 0), Point(900, 3400, 0), Point(900, 3000, 0)]
 
 LOOP_MAIN_PATH = [Point(3320, 2800, 0),  Point(3320, 5600, 0), Point(3320, 6000, 0),

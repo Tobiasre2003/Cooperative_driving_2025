@@ -179,7 +179,7 @@ class Object:
         self.direction = theta
         
     def rotation_matrix(self, sign:int = 1) -> tuple:
-        return (Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)), Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)))
+        return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
     
     def get_global_velocity_vector(self):
         rotation_matrix = self.rotation_matrix(-1)
@@ -244,6 +244,8 @@ class Object:
         self_collision_point = None
         
         for point in self.from_globl_to_local(obj.from_local_to_global()):
+            point = Point(point.y, point.x)
+            
             dist_from_vector_1 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p1)
             dist_from_vector_2 = self.velocity_vector.get_orthogonal_vector().get_unit_vector().dot_product(point+p2)
             
@@ -261,7 +263,7 @@ class Object:
                 if distance < closest_distance: 
                     closest_distance = distance
                     self_collision_point = obj_collision_point
-        
+
         return self.point_from_local_to_global(front_point).distance_between_points(self.point_from_local_to_global(self_collision_point))
 
     
@@ -305,7 +307,7 @@ class Object:
         
     def global_point_in_object(self, global_point:Point):
         local_point = self.point_from_globl_to_local(global_point)
-        local_point = Point(local_point.y, local_point.x)
+        
         prev_point = self.borders[-1]
         sign = 0
         for point in self.borders:
@@ -373,6 +375,8 @@ class Intersection:
     class Intersection_section:
         def __init__(self, outer, center_point:Point, dx:float, dy:float, n:int, theta:float):
             self.n = n
+            self.dx = dx
+            self.dy = dy
             self.outer = outer
             self.center_point = center_point
             self.obj = Object(self.center_point, theta, [Point(-dx/2,-dy/2),Point(-dx/2,dy/2),Point(dx/2,dy/2),Point(dx/2,-dy/2)])
@@ -427,17 +431,25 @@ class Intersection:
 
             return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point), done
         
+        def on_boarder(self, point:Point):
+            x_con = self.center_point.x-self.dx <= point.x <= self.center_point.x+self.dx
+            y_con = self.center_point.y-self.dy <= point.y <= self.center_point.y+self.dy
+            return x_con and y_con
+        
         def crossing_boarder(self, outside:Point, inside:Point):
-            crossing_vector = Vector(inside.x-outside.x,inside.y-outside.y)
+            crossing_vector1 = Vector(inside.x-outside.x,inside.y-outside.y)
+
             borders = self.obj.from_local_to_global()
             prev_point = borders[-1]
             crossing_point = None
             distance = math.inf
             
             for point in borders:
+               
                 vector = Vector(point.x-prev_point.x, point.y-prev_point.y)
-                p = self.obj.crossing_vector(outside, prev_point, crossing_vector, vector)
-                if not p == None:
+                p = self.obj.crossing_vector(outside, prev_point, crossing_vector1, vector)
+     
+                if not p == None and self.on_boarder(p):
                     dist = p.distance_between_points(outside)
                     if dist<distance:
                         distance = dist
@@ -1017,8 +1029,8 @@ class UDP_server(threading.Thread):
 
 cooperative_controller = {
                             #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
-                            #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400),
-                            "merging 1":Intersection("merging 1", Point(654,5765), Point(2023,6237),0,1,1,None,4000,2800) #,
+                            #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400) #,
+                            "merging 1":Intersection("merging 1", Point(654,4765), Point(2023,5237),0,1,1,None,4000,2800) #,
                             #"roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]], 3000, 2000)
                          }
 
