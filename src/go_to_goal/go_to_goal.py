@@ -70,12 +70,12 @@ LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 5600, 0), Point(3320, 6000, 
                   Point(3452, 8247, 0), Point(3702, 8247, 0) ]
 #LOOP_RAMP_PATH = [Point(3320, 2800, 0), Point(3320, 3500, 0), Point(3320, 4600, 0), Point(3320, 5600, 0), Point(3320, 6600, 0), Point(3702, 8547, 0), Point(2502, 7850, 0), Point(3702, 8547, 0) ]
 
-ROUNDABOUT1 = [Point(3822, 7433, 0), Point(3812, 5211, 0),Point(3957, 4575, 0), Point(4484, 3856, 0),
+ROUNDABOUT1 = [Point(3822, 7433, 0), Point(3812, 5211, 0),Point(4100, 4575, 0), Point(4600, 3856, 0),
               Point(4220, 3109, 0), Point(3274, 2876, 0), Point(2829, 3546, 0), Point(1595, 3669, 0),
-              Point(3327, 8645, 0)]
+              Point(3327, 8645, 0), Point(3500, 8000, 0)]
 
 ROUNDABOUT2 = [Point(2888, 1215, 0), Point(3369,1938, 0), Point(3326, 2819, 0), Point(2843, 3336, 0),
-               Point(1595, 3669, 0), Point(1990, 1261, 0)]
+               Point(1595, 3669, 0), Point(400, 1000, 0), Point(1990, 1261, 0)]
 
 # Merging main road path, left lane
 # MAIN_PATH = [Point(480, 8400, 0), Point(480, 7400, 0), Point(500, 6400, 0), Point(480, 5400, 0), Point(450, 4400, 0), Point(500, 3400, 0), Point(500, 2400, 0), Point(480, 2100, 0)]
@@ -513,9 +513,9 @@ if __name__ == '__main__':
         #print("DONE :D")
         
         if node.loopi >= len(LOOP_PATH):
-            node.i = 1
+            node.i = -1
             node.loopi = 0
-            node.waitBeforeLooping = True
+            node.waitBeforeLooping = False
 
 
             
