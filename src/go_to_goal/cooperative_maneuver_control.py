@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import rospy
+import rosnode
 from gv_client.msg import GulliViewPosition, LaptopSpeed
 from roswifibot.msg import Status
 from std_msgs.msg import Header
@@ -887,12 +888,14 @@ class Cruise_control:
         topic_handler.setSpeed(topic_handler.last_speed)
 
 class Roundabout:
-    def __init__(self, name, entry_section_points:list):
+    def __init__(self, name, entry_section_points:list, bot_range:float = None, entry_range:float = None):
         self.name = name
+        self.bot_range = bot_range
+        self.entry_range = entry_range
         self.entry_sections = {}
         for i in range(len(entry_section_points)):
             points = entry_section_points[i]
-            self.entry_sections["entry_"+str(i)] = Intersection("entry_"+str(i), points[0], points[1], 0, 1, 1, self.name)  
+            self.entry_sections["entry_"+str(i)] = Intersection("entry_"+str(i), points[0], points[1], 0, 1, 1, self.name, self.bot_range, self.entry_range)  
         
     def update(self):
         for intersection in self.entry_sections.values():
@@ -974,6 +977,7 @@ class UDP_client:
     
     def close(self):
         self.sock.close()
+        log(file, "Status", "closing socket")
 
 
 class UDP_server(threading.Thread):
@@ -1000,20 +1004,22 @@ class UDP_server(threading.Thread):
     def stop(self):
         self.running = False
         self.sock.close()
+        log(file, "Status", f"Stopping UDP server")
         
     def handler(self, data):
         try: data_list = pickle.loads(data)
         except: return
         log(file, "Data from udp", data_list)
         cooperative_controller[data_list[0]].bot_communication(data_list[1:])  
-        
+
+    
 
 
 cooperative_controller = {
                             #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
                             #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400),
-                            #"merging 1":Intersection("merging 1", Point(654,5765), Point(2023,6237),0,1,1,None,4000,2800),
-                            "roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]])
+                            "merging 1":Intersection("merging 1", Point(654,5765), Point(2023,6237),0,1,1,None,4000,2800) #,
+                            #"roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]], 3000, 2000)
                          }
 
 cruise_control = Cruise_control(0.5)
@@ -1024,8 +1030,9 @@ def run():
     cruise_control.update()
                                 
 
-def wait_for_path(bot:Bot):
+def wait_for_path():
     try:
+        bot = bots[my_id]
         if len(bot.path) > 0: return
         log(file, "Status", "waiting for path")
         topic_handler.setSpeed(0)
@@ -1037,6 +1044,14 @@ def wait_for_path(bot:Bot):
             time.sleep(0.1) 
     except OSError:
         return 
+
+
+def node_is_running(node_name):
+    node_list = rosnode.get_node_names()
+    is_running = False
+    for node in node_list:
+        is_running = is_running or (node_name in node) 
+    return is_running
 
 
 if __name__ == '__main__': 
@@ -1056,17 +1071,21 @@ if __name__ == '__main__':
         udo_server.start()
         log(file, "Status", "Starting udp-server")
 
-        wait_for_path(bots[my_id])
-        
-        while not rospy.is_shutdown():
+        wait_for_path()
+
+        while not rospy.is_shutdown() and node_is_running('reachGoal'):
             run()
 
-    except KeyboardInterrupt:
-        udo_server.stop()
-        udp_client.close()
+    except Exception as exception:
+        log(file, "Status", f"Exception: {exception}")
+        
     finally:
         udo_server.stop()
         udp_client.close()
         
-
-           
+        if not node_is_running('reachGoal'):
+            log(file, "Status", "Shutting down: go_to_goal is not running")
+        else:
+            log(file, "Status", "Shutting down")
+            
+            
