@@ -1043,16 +1043,25 @@ def collect_data(name, intersection):
     my_bot = bots[my_id]
     my_params = intersection.bot_params[my_id]
     speed = my_bot.absolute_speed
+    dti = None
+    dte = None
     
     if my_id in intersection.bot_params.keys():
         mti = my_params.mti
         mte = my_params.time_to_exit
+        try:
+            dti = my_params.dist_to_entry() 
+            dte = my_params.dist_to_exit()
+        except:
+            dti = None
+            dte = None
     else:
         mti = None
         mte = None
+
     
-    data = [time, speed, mti, mte]
-    write_csv(f"bot {my_id}"+"_"+intersection.name+"_"+name, data, ['time', 'speed', 'mti', 'mte'])
+    data = [time, speed, mti, mte, dti, dte]
+    write_csv(f"bot {my_id}"+"_"+intersection.name+"_"+name, data, ['time', 'speed', 'mti', 'mte', 'dti', 'dte'])
     
 
 
