@@ -1,0 +1,114 @@
+import csv
+import os
+import numpy as np
+import matplotlib.pyplot as plt 
+import math
+from tkinter import filedialog
+
+def write_csv(filnamn, data, rubriker):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, filnamn)  
+    fil_exists = os.path.exists(file_path)
+
+    with open(file_path, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        if not fil_exists:
+            writer.writerow(rubriker)
+        writer.writerow(data)
+
+
+def read_bot_csv_file(filnamn):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, filnamn)  
+
+    data = {}
+
+    with open(file_path, mode="r") as file:
+        read = csv.reader(file)
+        first_row = True
+        names = []            
+        for row in read:
+            if first_row:
+                for name in row:
+                    data[name] = []  
+                    names.append(name)
+                first_row = False
+                continue
+            for n in range(len(names)):
+                data[names[n]].append(row[n])
+    return data
+        
+def to_floats(array):
+    new_array = []
+    for val in array:
+        try:
+            if val == "inf":
+                new_array.append(math.inf)
+                continue
+            new_array.append(float(val))
+        except:
+            new_array.append(None)
+    return new_array
+
+def time_step(times):
+    start_time_str_list = times[0].split("-")
+    start_time_str_list[2] = '0.'+start_time_str_list[2]
+    start_time_list = to_floats(start_time_str_list)
+    start_time = start_time_list[0]*60 + start_time_list[1] + start_time_list[2]
+    new_times = [0]
+    for time in times[1:]:
+        time_str_list = time.split("-")
+        time_str_list[2] = '0.'+time_str_list[2]
+        time_list = to_floats(time_str_list)
+        time_diff = time_list[0]*60 + time_list[1] + time_list[2] - start_time
+        new_times.append(time_diff)
+    return new_times
+        
+
+def acc(time_list, speed_list):
+    acc = [0]
+    for n in range(1, len(time_list)):
+        dt = time_list[n-1] - time_list[n]
+        dv = speed_list[n-1] - speed_list[n]
+        acc.append(dv/dt)
+    return acc
+
+
+def plot_data(number_of_files:int, parameters:list[str]):
+    file_data = {}
+    size = math.inf
+    for _ in range(number_of_files):
+        filename = filedialog.askopenfilename()
+        data = read_bot_csv_file(filename)
+        times = time_step(data['time'])
+        size = min(len(times), size)
+        file_parameters = {'time':times}
+        
+        for param_type in parameters:
+            float_data = to_floats(data[param_type])
+            file_parameters[param_type] = float_data
+        
+        file_data[filename] = file_parameters
+        
+    for name in file_data.keys():
+        data_set = file_data[name]
+        for param_type in data_set.keys():
+            if param_type == 'time': continue
+            data = data_set[param_type][:size]
+            time = data_set['time'][:size]
+            
+            data = np.array(data)
+            time = np.array(time)
+            
+            name = "bot 4" if "bot 4" in name else name
+            name = "bot 5" if "bot 5" in name else name
+            
+            plt.plot(time, data, label = name + " - " + param_type)
+
+    plt.legend()
+    plt.show()
+
+
+plot_data(2, ['mti', 'mte'])
+
+
