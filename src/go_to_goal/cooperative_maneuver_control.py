@@ -15,6 +15,7 @@ import os
 import datetime
 import time
 import pickle
+import csv
 
 rospy.init_node('cooperative_maneuver_control', anonymous=True)
 rospy.loginfo("Starting cooperative_maneuver_control node")
@@ -180,6 +181,7 @@ class Object:
         
     def rotation_matrix(self, sign:int = 1) -> tuple:
         return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
+    
     
     def get_global_velocity_vector(self):
         rotation_matrix = self.rotation_matrix(-1)
@@ -550,8 +552,9 @@ class Intersection:
         
         def dist_to_exit(self):
             dist_to_int = self.bot.point.distance_between_points(self.intersection_entry_point)
+            dist_to_exit = self.bot.point.distance_between_points(self.intersection_exit_point)
             dist_in_int = self.intersection_entry_point.distance_between_points(self.intersection_exit_point)
-            last_con = dist_to_int > dist_in_int
+            last_con = (dist_to_int > dist_in_int) and (dist_to_exit < dist_in_int)
             return self.dist_to_border(self.intersection_exit_dist_list, self.intersection_exit_point, last_con)
         
         def dist_to_parts_exit(self):
@@ -640,7 +643,7 @@ class Intersection:
         if max_range == None: max_range = self.range
         center_point = (self.p2 - self.p1)*0.5 + self.p1
         return center_point.distance_between_points(bot.point) <= max_range
-    
+      
     def bots_in_range(self):
         for bot in bots.values():
             if self.in_range(bot) and not bot.id in self.bot_params:
@@ -919,8 +922,6 @@ class Roundabout:
             
     def bot_communication(self, msg):
         self.entry_sections[msg[0]].bot_communication(msg[1:])
-        
-
 
 class Ros_topic_handler:
     def __init__(self):
@@ -976,8 +977,6 @@ class Ros_topic_handler:
     def set_speed_lim(self, lim):
         self.max_speed = max(min(lim, SPEED), 0)
         
-    
-    
 class UDP_client:
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1024,6 +1023,36 @@ class UDP_server(threading.Thread):
         log(file, "Data from udp", data_list)
         cooperative_controller[data_list[0]].bot_communication(data_list[1:])  
 
+def csv_name():
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return f"data_{timestamp}.csv"
+
+def write_csv(filnamn, data, rubriker):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, filnamn)  
+    fil_exists = os.path.exists(file_path)
+
+    with open(file_path, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        if not fil_exists:
+            writer.writerow(rubriker)
+        writer.writerow(data)
+
+def collect_data(name, intersection):
+    time = datetime.datetime.now().strftime("%M-%S-%f")
+    my_bot = bots[my_id]
+    my_params = intersection.bot_params[my_id]
+    speed = my_bot.absolute_speed
+    
+    if my_id in intersection.bot_params.keys():
+        mti = my_params.mti
+        mte = my_params.time_to_exit
+    else:
+        mti = None
+        mte = None
+    
+    data = [time, speed, mti, mte]
+    write_csv(f"bot {my_id}"+"_"+intersection.name+"_"+name, data, ['time', 'speed', 'mti', 'mte'])
     
 
 
@@ -1039,6 +1068,7 @@ cruise_control = Cruise_control(0.5)
 def run():
     for controller in cooperative_controller.values():
         controller.update()
+        collect_data(data_file, controller)
     cruise_control.update()
                                 
 
@@ -1076,6 +1106,7 @@ if __name__ == '__main__':
         ip[4] = '192.168.50.102'
         ip[5] = '192.168.50.103'
         
+        data_file = csv_name()
         file = init_log()
         topic_handler = Ros_topic_handler()
         udp_client = UDP_client()
