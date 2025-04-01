@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import math
 from tkinter import filedialog
+from cir import cri
 
 def write_csv(filnamn, data, rubriker):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -50,8 +51,24 @@ def to_floats(array):
             new_array.append(None)
     return new_array
 
-def time_step(times):
-    start_time_str_list = times[0].split("-")
+def start_time(times):
+    start_time = None
+    start_time_str = ""
+    for time_list in times:
+        time = to_floats(time_list[0].split("-"))
+        if start_time == None:
+            start_time = time
+            start_time_str = time_list[0]
+        else:
+            diff = [start_time[0]-time[0], start_time[1]-time[1], start_time[2]-time[2]]
+            if diff[0] > 0 or (diff[0] == 0 and diff[1] > 0) or (diff[0] == 0 and diff[1] == 0 and diff[2] > 0):
+                start_time = time
+                start_time_str = time_list[0]
+                
+    return start_time_str   
+
+def time_step(start, times):
+    start_time_str_list = start.split("-")
     start_time_str_list[2] = '0.'+start_time_str_list[2]
     start_time_list = to_floats(start_time_str_list)
     start_time = start_time_list[0]*60 + start_time_list[1] + start_time_list[2]
@@ -77,22 +94,40 @@ def acc(time_list, speed_list):
 def plot_data(number_of_files:int, parameters:list[str]):
     file_data = {}
     size = math.inf
+    times = []
+    
     for _ in range(number_of_files):
         filename = filedialog.askopenfilename()
         data = read_bot_csv_file(filename)
-        times = time_step(data['time'])
+        file_data[filename] = data
+        times.append(data['time'])
+    
+    start_time_str = start_time(times)
+
+    for file in file_data.keys():
+        data = file_data[file]
+        times = time_step(start_time_str, data['time'])
         size = min(len(times), size)
         file_parameters = {'time':times}
-        
-        for param_type in parameters:
+        params = parameters.copy()
+        params.extend(['mti','dti'])
+        for param_type in params:
+            if param_type == 'cri': continue
             float_data = to_floats(data[param_type])
             file_parameters[param_type] = float_data
         
-        file_data[filename] = file_parameters
-        
+        file_data[file] = file_parameters
+
+    if 'cri' in parameters: 
+        main_file = list(file_data.keys())[0]
+        ramp_file = list(file_data.keys())[1]
+        cri(file_data, size, main_file, ramp_file)
+
     for name in file_data.keys():
         data_set = file_data[name]
-        for param_type in data_set.keys():
+        for param_type in parameters:
+
+            if not param_type in data_set.keys(): continue
             if param_type == 'time': continue
             data = data_set[param_type][:size]
             time = data_set['time'][:size]
@@ -109,6 +144,6 @@ def plot_data(number_of_files:int, parameters:list[str]):
     plt.show()
 
 
-plot_data(2, ['mti', 'mte'])
+plot_data(2, ['cri'])
 
 

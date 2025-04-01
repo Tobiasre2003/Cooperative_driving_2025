@@ -1043,6 +1043,8 @@ def collect_data(name, intersection):
     my_bot = bots[my_id]
     my_params = intersection.bot_params[my_id]
     speed = my_bot.absolute_speed
+    pos = my_bot.point
+    theta = my_bot.theta
     dti = None
     dte = None
     
@@ -1060,8 +1062,8 @@ def collect_data(name, intersection):
         mte = None
 
     
-    data = [time, speed, mti, mte, dti, dte]
-    write_csv(f"bot {my_id}"+"_"+intersection.name+"_"+name, data, ['time', 'speed', 'mti', 'mte', 'dti', 'dte'])
+    data = [time, pos.x, pos.y, theta, speed, mti, mte, dti, dte]
+    write_csv(f"bot {my_id}"+"_"+intersection.name+"_"+name, data, ['time', 'x', 'y', 'theta', 'speed', 'mti', 'mte', 'dti', 'dte'])
     
 
 
@@ -1072,7 +1074,7 @@ cooperative_controller = {
                             #"roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]], 3000, 2000)
                          }
 
-cruise_control = Cruise_control(0.5)
+cruise_control = Cruise_control(0.25)
 
 def run():
     for controller in cooperative_controller.values():
