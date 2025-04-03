@@ -1041,27 +1041,33 @@ def write_csv(filnamn, data, rubriker):
 def collect_data(name, intersection):
     time = datetime.datetime.now().strftime("%M-%S-%f")
     my_bot = bots[my_id]
-    my_params = intersection.bot_params[my_id]
     speed = my_bot.absolute_speed
     pos = my_bot.point
     theta = my_bot.theta
     dti = None
     dte = None
     
-    if my_id in intersection.bot_params.keys():
-        mti = my_params.mti
-        mte = my_params.time_to_exit
-        try:
-            dti = my_params.dist_to_entry() 
-            dte = my_params.dist_to_exit()
-        except:
-            dti = None
-            dte = None
-    else:
+    
+    try:
+        my_params = intersection.bot_params[my_id]
+        if my_id in intersection.bot_params.keys():
+            mti = my_params.mti
+            mte = my_params.time_to_exit
+            try:
+                dti = my_params.dist_to_entry() 
+                dte = my_params.dist_to_exit()
+            except:
+                dti = None
+                dte = None
+        else:
+            mti = None
+            mte = None
+    except:
         mti = None
         mte = None
+        dti = None
+        dte = None
 
-    
     data = [time, pos.x, pos.y, theta, speed, mti, mte, dti, dte]
     write_csv(f"bot {my_id}"+"_"+intersection.name+"_"+name, data, ['time', 'x', 'y', 'theta', 'speed', 'mti', 'mte', 'dti', 'dte'])
     

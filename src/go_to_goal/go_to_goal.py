@@ -75,7 +75,7 @@ ROUNDABOUT1 = [Point(3822, 7433, 0), Point(3812, 5211, 0),Point(4100, 4575, 0), 
               Point(3327, 8645, 0), Point(3500, 8000, 0)]
 
 ROUNDABOUT2 = [Point(2888, 1215, 0), Point(3369,1938, 0), Point(3326, 2819, 0), Point(2843, 3336, 0),
-               Point(1595, 3669, 0), Point(400, 1000, 0), Point(1990, 1261, 0)]
+               Point(1595, 3669, 0), Point(1990, 1261, 0)]
 
 # Merging main road path, left lane
 # MAIN_PATH = [Point(480, 8400, 0), Point(480, 7400, 0), Point(500, 6400, 0), Point(480, 5400, 0), Point(450, 4400, 0), Point(500, 3400, 0), Point(500, 2400, 0), Point(480, 2100, 0)]
@@ -101,8 +101,8 @@ INTERSECTION_EIGHT = [Point(2200, 4600, 0), Point(1200, 5400, 0),Point(1800, 620
 INTERSECTION_PATH_1 = [Point(3968,7741,0),Point(4000, 5735, 0), Point(3968, 4200,0), Point(3968, 3552, 0), Point(2914, 3552, 0), Point(1852, 3500,0)]
 INTERSECTION_PATH_2 = [Point(3382, 411, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0)]
 INTERSECTION_PATH_3 = [Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,411,0)]
-INTERSECTION_PATH_23 = [Point(3382, 411, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0),
-                        Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,411,0)]
+INTERSECTION_PATH_23 = [Point(3382, 800, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0),
+                        Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,800,0)]
 
 PATH = []
 PATHS = {
