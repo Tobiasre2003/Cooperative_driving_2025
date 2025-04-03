@@ -21,39 +21,58 @@ def first(file_data:dict):
 def cir_AC(mti_A, mti_C, dti_A, dti_C):
     bot_length = 0.30
     ttc_CA = mti_C - mti_A
-    ttc_BC = mti_A + 4 - mti_C
+    #ttc_BC = mti_A + 4 - mti_C 
     d_a = (dti_C-dti_A) - bot_length
     d_b = 1.5 - d_a - bot_length
     k_a = d_a/(d_a+d_b)
     k_b = d_b/(d_a+d_b)
-    print(ttc_CA, mti_C, mti_A)
+    #print(ttc_BC, ttc_CA, mti_C, mti_A)
+    #cri_a = max(math.exp(-k_a), 0)
     cri_a = max(math.exp(-ttc_CA * k_a), 0)
-    cri_b = max(math.exp(-ttc_BC * k_b), 0)
-    return cri_a + cri_b
+    #cri_b = max(math.exp(-ttc_BC * k_b), 0)
+    return cri_a 
 
 
 def cir_BC(mti_B, mti_C, dti_B, dti_C):
     bot_length = 0.30
     ttc_BC = mti_B - mti_C
-    ttc_CA = mti_C - mti_B + 4
+    #ttc_CA = mti_C - mti_B + 4 # Behöver lösas på annat sätt
     d_b = (dti_B-dti_C) - bot_length
-    d_a = 1.5 - d_b - bot_length
+    d_a = 1.5
     k_a = d_a/(d_a+d_b)
     k_b = d_b/(d_a+d_b)
+    print(ttc_BC,mti_C,mti_B)
+    #cri_a = max(math.exp(-ttc_CA * k_a), 0)
+    cri_b = max(math.exp(-k_b), 0)
+    return cri_b
+
+
+def get_value(time, data, time_point, main_time=None):
+    index = 0 
+    try:
+        if main_time[1] > time_point:
+            return data[0]
+        else:
+            for i in range(len(main_time)):
+                if main_time[i] > time_point:
+                    index = i
+                    break
+    except: pass
     
-    cri_a = max(math.exp(-ttc_CA * k_a), 0)
-    cri_b = max(math.exp(-ttc_BC * k_b), 0)
-    print(ttc_CA,mti_C,mti_B)
-    return cri_a + cri_b
-
-
-def get_value(time, data, time_point):
-    index = 0
-    for n in range(len(time)):
-        if time[n] >= time_point:
-            index = n
-            break
+    if main_time == None:
+        for j in range(len(time)):
+            if time[j] >= time_point:
+                index = j
+                break
     return data[index]
+    
+    # for n in range(len(time)):
+    #     if main_time[1] > time_point:
+    #         return data[0]
+    #     if time[n] >= time_point:
+    #         index = n
+    #         break
+    # return data[index]
     
 
 def cri(file_data, size, main_file_name, ramp_file_name):
@@ -66,9 +85,9 @@ def cri(file_data, size, main_file_name, ramp_file_name):
     for time in file_data[ramp_file_name]['time'][:size]:
         cri_value = None
         try:
-            main_mti = get_value(file_data[ramp_file_name]['time'], main_mti_list, time)
+            main_mti = get_value(file_data[ramp_file_name]['time'], main_mti_list, time, file_data[main_file_name]['time'])
             ramp_mti = get_value(file_data[ramp_file_name]['time'], ramp_mti_list, time)
-            main_dti = get_value(file_data[ramp_file_name]['time'], main_dti_list, time)/1000
+            main_dti = get_value(file_data[ramp_file_name]['time'], main_dti_list, time, file_data[main_file_name]['time'])/1000
             ramp_dti = get_value(file_data[ramp_file_name]['time'], ramp_dti_list, time)/1000
             
             if main_mti == 0 or ramp_mti == 0: pass
@@ -78,7 +97,7 @@ def cri(file_data, size, main_file_name, ramp_file_name):
             elif ramp_file_name == first_bot:
                 cri_value = cir_BC(main_mti, ramp_mti, main_dti, ramp_dti)
             
-            cri_value = max(0, min(1, cri_value))    
+            cri_value = max(0, min(2, cri_value))    
             
         except: pass
             
