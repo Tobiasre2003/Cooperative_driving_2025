@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import math
 from tkinter import filedialog
-from cir import cri
+from cri import cri
 
 def write_csv(filnamn, data, rubriker):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -90,6 +90,23 @@ def acc(time_list, speed_list):
         acc.append(dv/dt)
     return acc
 
+def avg_speeds(data):
+    for s in range(len(data)-50):
+        if type(data[s]) == str: 
+            continue
+        new_speeds = []
+        for i in range(50):
+            new_speeds.append(data[s+i])
+        avg_speed = sum(new_speeds)/50
+        data[s] = avg_speed
+    return data
+
+def mti_avgspeed(speedlist, dtilist, mtilist):
+    avg_mti = []
+    for i in range(len(mtilist)):
+        if type(mtilist[i]) == float: avg_mti.append(dtilist[i]/1000/speedlist[i])
+        else: avg_mti.append(mtilist[i])
+    return avg_mti
 
 def plot_data(number_of_files:int, parameters:list[str]):
     file_data = {}
@@ -118,6 +135,14 @@ def plot_data(number_of_files:int, parameters:list[str]):
         
         file_data[file] = file_parameters
 
+    try:
+        for file in file_data.keys():
+        
+            print(file_data[file]['speed'])
+            file_data[file]['speed'] = avg_speeds(file_data[file]['speed'])
+            file_data[file]['mti'] = mti_avgspeed(file_data[file]['speed'], file_data[file]['dti'], file_data[file]['mti'])
+    except: pass
+    
     if 'cri' in parameters: 
         main_file = list(file_data.keys())[0]
         ramp_file = list(file_data.keys())[1]

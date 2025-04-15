@@ -18,7 +18,7 @@ def first(file_data:dict):
 
     return first
 
-def cir_AC(mti_A, mti_C, dti_A, dti_C):
+def cri_AC(mti_A, mti_C, dti_A, dti_C):
     bot_length = 0.30
     ttc_CA = mti_C - mti_A
     #ttc_BC = mti_A + 4 - mti_C 
@@ -33,7 +33,7 @@ def cir_AC(mti_A, mti_C, dti_A, dti_C):
     return cri_a 
 
 
-def cir_BC(mti_B, mti_C, dti_B, dti_C):
+def cri_CB(mti_B, mti_C, dti_B, dti_C):
     bot_length = 0.30
     ttc_BC = mti_B - mti_C
     #ttc_CA = mti_C - mti_B + 4 # Behöver lösas på annat sätt
@@ -43,7 +43,7 @@ def cir_BC(mti_B, mti_C, dti_B, dti_C):
     k_b = d_b/(d_a+d_b)
     print(ttc_BC,mti_C,mti_B)
     #cri_a = max(math.exp(-ttc_CA * k_a), 0)
-    cri_b = max(math.exp(-k_b), 0)
+    cri_b = max(math.exp(-ttc_BC*k_b), 0)
     return cri_b
 
 
@@ -93,9 +93,9 @@ def cri(file_data, size, main_file_name, ramp_file_name):
             if main_mti == 0 or ramp_mti == 0: pass
             
             elif main_file_name == first_bot:
-                cri_value = cir_AC(main_mti, ramp_mti, main_dti, ramp_dti)
+                cri_value = cri_AC(main_mti, ramp_mti, main_dti, ramp_dti)
             elif ramp_file_name == first_bot:
-                cri_value = cir_BC(main_mti, ramp_mti, main_dti, ramp_dti)
+                cri_value = cri_CB(main_mti, ramp_mti, main_dti, ramp_dti)
             
             cri_value = max(0, min(2, cri_value))    
             
