@@ -1,10 +1,8 @@
-
 import math
 import csv
 import os
 import math
 from tkinter import filedialog
-
 class Point:
     def __init__(self,x:float, y:float, z:float = 0):
         self.x = x
@@ -143,7 +141,6 @@ def get_path(file:str):
             
     return path
 
-
 def find_pos(point:Point, path):
     dist = None
     index = None
@@ -156,17 +153,26 @@ def find_pos(point:Point, path):
     
     return path[index]
 
-
 def get_time_diff(start_point:Point, end_point:Point, file:str):
     path = get_path(file)
     start_pos = find_pos(start_point, path)
     end_pos = find_pos(end_point, path)
+    time = end_pos[0] - start_pos[0]
+    time = time if time >= 0 else None
     
-    return end_pos[0] - start_pos[0]
+    return time
+
+def get_time(case):
+    file = get_files(1)[0]
+    time = get_time_diff(*case, file)
+    print(time)
+
+
+cases = {
+    'intersection_1' : (Point(3867, 8029), Point(1815, 3442)), 
+}
 
 
 
-file = get_files(1)[0]
-time = get_time_diff(Point(3409,395), Point(3444,1595), file)
+get_time(cases['intersection_1'])
 
-print(time)
