@@ -159,7 +159,6 @@ def find_pos(point:Point, path):
 
 def get_time_diff(start_point:Point, end_point:Point, file:str):
     path = get_path(file)
-    
     start_pos = find_pos(start_point, path)
     end_pos = find_pos(end_point, path)
     
@@ -168,6 +167,6 @@ def get_time_diff(start_point:Point, end_point:Point, file:str):
 
 
 file = get_files(1)[0]
-a = get_time_diff(Point(3409,395), Point(3444,1595), file)
+time = get_time_diff(Point(3409,395), Point(3444,1595), file)
 
-print(a)
+print(time)
