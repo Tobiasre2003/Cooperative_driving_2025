@@ -806,7 +806,8 @@ class Intersection:
                         not_done = False
                 
                 if not not_done: 
-                    if bot.id in claims:
+                    mti = self.bot_params[bot.id].mti
+                    if bot.id in claims and not mti == 0:
                         try:
                             with self.bot_params[bot.id].lock:
                                 log(file, f"{self.name}", f"priority error bot {bot.id}")

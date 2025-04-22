@@ -168,15 +168,28 @@ def get_time(case):
     print(file, ':', time)
     return time
 
+def get_mean(case:tuple, number_of_files:int):
+    total = 0
+    for _ in range(number_of_files):
+        total += get_time(case)
+    
+    mean = total / number_of_files
+    print('Mean : ', mean)
+    return mean
+
+def get_diff(case):
+    a = get_time(case)
+    b = get_time(case)
+    diff = abs(a-b)
+    print('Diff : ', diff)
+    return diff
+
+
 
 cases = {
     'intersection_1' : (Point(3867, 8029), Point(1815, 3442)), 
-    #'intersection_2' : (Point(, ), Point(, )), 
+    'intersection_2' : (Point(3382, 411), Point(3382, 6300)), 
 }
 
 
-a = get_time(cases['intersection_1'])
-b = get_time(cases['intersection_1'])
-print('\nDiff : ', abs(a-b))
-
-
+get_diff(cases['intersection_2'])
