@@ -165,14 +165,18 @@ def get_time_diff(start_point:Point, end_point:Point, file:str):
 def get_time(case):
     file = get_files(1)[0]
     time = get_time_diff(*case, file)
-    print(time)
+    print(file, ':', time)
+    return time
 
 
 cases = {
     'intersection_1' : (Point(3867, 8029), Point(1815, 3442)), 
+    #'intersection_2' : (Point(, ), Point(, )), 
 }
 
 
+a = get_time(cases['intersection_1'])
+b = get_time(cases['intersection_1'])
+print('\nDiff : ', abs(a-b))
 
-get_time(cases['intersection_1'])
 
