@@ -187,9 +187,11 @@ def get_diff(case):
 
 
 cases = {
-    'intersection_1' : (Point(3867, 8029), Point(1815, 3442)), 
-    'intersection_2' : (Point(3382, 411), Point(3382, 6300)), 
+    'intersection_1' : (Point(3846, 8028), Point(1862, 3450)), 
+    'intersection_2' : (Point(3400, 500), Point(3487, 6122)), 
+    'merging_main' : (Point(0, 0), Point(0, 0)),
+    'merging_ramp' : (Point(0, 0), Point(0, 0))
 }
 
 
-get_diff(cases['intersection_2'])
+get_time(cases['intersection_1'])
