@@ -161,36 +161,39 @@ def get_time_diff(start_point:Point, end_point:Point, file:str):
     end_pos = find_pos(end_point, path)
     time = end_pos[0] - start_pos[0]
     time = time if time >= 0 else None
-    
     return time
 
-def get_time(case):
-    file = get_files(1)[0]
+def get_time(case:tuple, file:str = None):
+    file = get_files(1)[0] if file == None else file
     time = get_time_diff(*case, file)
     print(file, ':', time)
     return time
 
-def get_mean(case:tuple, number_of_files:int):
+def get_mean(case:tuple, number_of_files:int = 0, files:list = None):
+    
     total = 0
-    for _ in range(number_of_files):
-        total += get_time(case)
+    if files == None:
+        for _ in range(number_of_files):
+            total += get_time(case)
+    else:
+        number_of_files = len(files)
+        for n in range(len(files)):
+            total += get_time(case, files[n])
     
     mean = total / number_of_files
     print('Mean : ', mean)
     return mean
 
-def get_diff(case):
+def get_diff(case:tuple):
     a = get_time(case)
     b = get_time(case)
     diff = abs(a-b)
     print('Diff : ', diff)
     return diff
 
-
-
 def get_files_in_folder():
     directory = filedialog.askdirectory(title="Select Folder:")
-    files = [join(directory, f) for f in listdir(directory) if isfile(join(directory, f))]
+    files = [directory+'/'+f for f in listdir(directory) if isfile(join(directory, f))]
     return files
     
 
@@ -202,5 +205,13 @@ cases = {
     'merging_ramp' : (Point(0, 0), Point(0, 0))
 }
 
-get_files_in_folder()
-#get_mean(cases['intersection_1'], 10)
+
+
+
+files = get_files_in_folder()
+a = get_mean(cases['intersection_1'], files=files)
+
+files = get_files_in_folder()
+b = get_mean(cases['intersection_1'], files=files)
+
+print(abs(a-b))
