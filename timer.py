@@ -5,6 +5,8 @@ import math
 from tkinter import filedialog
 from os import listdir
 from os.path import isfile, join
+import numpy as np
+import matplotlib.pyplot as plt
 class Point:
     def __init__(self,x:float, y:float, z:float = 0):
         self.x = x
@@ -169,6 +171,12 @@ def get_time(case:tuple, file:str = None):
     print(file, ':', time)
     return time
 
+def get_times(case:tuple, files:list):
+    times = []
+    for file in files:
+        times.append(get_time(case, file))
+    return times
+
 def get_mean(case:tuple, number_of_files:int = 0, files:list = None):
     
     total = 0
@@ -196,6 +204,36 @@ def get_files_in_folder():
     files = [directory+'/'+f for f in listdir(directory) if isfile(join(directory, f))]
     return files
     
+def plot_normal_distribution(case, files):
+    times = np.array(get_times(case, files))
+    m = np.mean(times)
+    s = np.sqrt(np.array([(x - m)**2 for x in times]).sum() / len(times))
+    X = np.linspace(m - 4*s, m + 4*s, 4000)
+    F = np.array([(1/(s*np.sqrt(2*np.pi))) * np.exp((-(x-m)**2)/(2*s**2)) for x in X])
+
+    plt.xticks(np.arange(m - 4*s, m + 4*s, step=s), labels=[f'{round(m+i*s, 3)}\n{i}\u03C3' if not i == 0 else f'{round(m, 3)}\n\u03BC' for i in range(-4, 5)])
+    percentage = [2.1, 13.6, 34.1, 34.1, 13.6, 2.1]
+    color = ['cornflowerblue', 'royalblue', 'blue', 'blue', 'royalblue', 'cornflowerblue']
+    
+    for i in range(-3, 3):
+        j = i+3
+        fill_from = m + s*i
+        fill_to = m + s*(i+1)
+        if fill_from is not None and fill_to is not None:
+            mask = (X >= fill_from) & (X <= fill_to)
+            plt.fill_between(X[mask], F[mask], alpha=0.3, color=color[j])
+            
+            x_mid = (fill_from + fill_to) / 2
+            y_max = F[mask].max()
+            
+            plt.text(x_mid, y_max * 0.6, f"{percentage[j]} %", 
+                 ha='center', va='center', fontsize=10, color='black',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='lightsteelblue', edgecolor='black'))
+
+    plt.plot(X, F)
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
 cases = {
@@ -208,10 +246,21 @@ cases = {
 
 
 
-files = get_files_in_folder()
-a = get_mean(cases['intersection_1'], files=files)
+# files = get_files_in_folder()
+# a = get_mean(cases['intersection_1'], files=files)
+
+# files = get_files_in_folder()
+# b = get_mean(cases['intersection_1'], files=files)
+
+
+# print('\n')
+
+# print('Mean:', a)
+# print('Mean:', b)
+# print('Diff: ', abs(a-b))
+# print('Percentage:', int((a/b)*100), '%')
+
 
 files = get_files_in_folder()
-b = get_mean(cases['intersection_1'], files=files)
+plot_normal_distribution(cases['intersection_2'], files)
 
-print(abs(a-b))
