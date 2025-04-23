@@ -863,7 +863,7 @@ class Intersection:
                                 
                                 time_to_clear = params.time_to_exit
                                 if time_to_clear == None: return
-                                time_to_clear += 1
+                                time_to_clear += 0.5
                                 
                                 dist = self.bot_params[my_id].dist_to_entry()/1000 - 0.16 ## snabb fix
                                 new_vel = min(max(dist / time_to_clear, 0), SPEED)
@@ -1075,13 +1075,13 @@ def collect_data(name, intersection):
 
 
 cooperative_controller = {
-                            #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605)),
+                            #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605), entry_range=3000),
                             #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400) #,
                             "merging 1":Intersection("merging 1", Point(654,4765), Point(2023,5237),0,1,1,None,4000,2800) #,
                             #"roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]], 3000, 2000)
                          }
 
-cruise_control = Cruise_control(0.25)
+cruise_control = Cruise_control(0.5)
 
 def run():
     for controller in cooperative_controller.values():
