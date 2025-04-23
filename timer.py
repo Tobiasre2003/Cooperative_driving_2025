@@ -3,6 +3,8 @@ import csv
 import os
 import math
 from tkinter import filedialog
+from os import listdir
+from os.path import isfile, join
 class Point:
     def __init__(self,x:float, y:float, z:float = 0):
         self.x = x
@@ -186,6 +188,13 @@ def get_diff(case):
 
 
 
+def get_files_in_folder():
+    directory = filedialog.askdirectory(title="Select Folder:")
+    files = [join(directory, f) for f in listdir(directory) if isfile(join(directory, f))]
+    return files
+    
+
+
 cases = {
     'intersection_1' : (Point(3846, 8028), Point(1862, 3450)), 
     'intersection_2' : (Point(3400, 500), Point(3487, 6122)), 
@@ -193,5 +202,5 @@ cases = {
     'merging_ramp' : (Point(0, 0), Point(0, 0))
 }
 
-
-get_mean(cases['intersection_2'], 10)
+get_files_in_folder()
+#get_mean(cases['intersection_1'], 10)
