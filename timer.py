@@ -239,8 +239,8 @@ def plot_normal_distribution(case, files):
 cases = {
     'intersection_1' : (Point(3846, 8028), Point(1862, 3450)), 
     'intersection_2' : (Point(3400, 500), Point(3487, 6122)), 
-    'merging_main' : (Point(0, 0), Point(0, 0)),
-    'merging_ramp' : (Point(0, 0), Point(0, 0))
+    'merging_main' : (Point(1020, 8920), Point(1150, 3380)),
+    'merging_ramp' : (Point(3150, 7840), Point(1150, 3380))
 }
 
 
