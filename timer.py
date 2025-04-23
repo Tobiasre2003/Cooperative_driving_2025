@@ -194,4 +194,4 @@ cases = {
 }
 
 
-get_time(cases['intersection_1'])
+get_mean(cases['intersection_2'], 10)
