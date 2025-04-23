@@ -1077,7 +1077,7 @@ def collect_data(name, intersection):
 cooperative_controller = {
                             #"intersection 1":Intersection("intersection 1",Point(2845, 2782), Point(4489, 4605), entry_range=3000),
                             #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400) #,
-                            "merging 1":Intersection("merging 1", Point(654,4765), Point(2023,5237),0,1,1,None,4000,2800) #,
+                            "merging 1":Intersection("merging 1", Point(654,4765), Point(2023,5237),0,1,1,None,4000,3000) #,
                             #"roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]], 3000, 2000)
                          }
 
