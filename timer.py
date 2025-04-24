@@ -211,7 +211,7 @@ def plot_normal_distribution(case, files):
     X = np.linspace(m - 4*s, m + 4*s, 4000)
     F = np.array([(1/(s*np.sqrt(2*np.pi))) * np.exp((-(x-m)**2)/(2*s**2)) for x in X])
 
-    plt.xticks(np.arange(m - 4*s, m + 4*s, step=s), labels=[f'{round(m+i*s, 3)}\n{i}\u03C3' if not i == 0 else f'{round(m, 3)}\n\u03BC' for i in range(-4, 5)])
+    plt.xticks(np.array([m +s*i for i in range(-4,5)]), labels=[f'{round(m+i*s, 3)}\n{i}\u03C3' if not i == 0 else f'{round(m, 3)}\n\u03BC' for i in range(-4, 5)])
     percentage = [2.1, 13.6, 34.1, 34.1, 13.6, 2.1]
     color = ['cornflowerblue', 'royalblue', 'blue', 'blue', 'royalblue', 'cornflowerblue']
     
@@ -261,6 +261,17 @@ cases = {
 # print('Percentage:', int((a/b)*100), '%')
 
 
-files = get_files_in_folder()
-plot_normal_distribution(cases['intersection_2'], files)
+# files = get_files_in_folder()
+# get_mean(cases['intersection_1'], files)
+# files = get_files_in_folder()
+# get_mean(cases['intersection_1'], files)
 
+
+# files = get_files_in_folder()
+# get_mean(cases['merging_ramp'], files)
+# files = get_files_in_folder()
+# get_mean(cases['merging_ramp'], files)
+
+
+files = get_files_in_folder()
+plot_normal_distribution(cases['merging_ramp'], files)
