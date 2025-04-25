@@ -239,6 +239,7 @@ def plot_normal_distribution(case, files):
 cases = {
     'intersection_1' : (Point(3846, 8028), Point(1862, 3450)), 
     'intersection_2' : (Point(3400, 500), Point(3487, 6122)), 
+    'intersection_3' : (Point(3817, 6928), Point(1862, 3450)), 
     'merging_main' : (Point(1020, 8920), Point(1150, 3380)),
     'merging_ramp' : (Point(3150, 7840), Point(1150, 3380))
 }
@@ -262,16 +263,18 @@ cases = {
 
 
 # files = get_files_in_folder()
-# get_mean(cases['intersection_1'], files)
+# a = get_mean(cases['intersection_1'], files=files)
 # files = get_files_in_folder()
-# get_mean(cases['intersection_1'], files)
+# b = get_mean(cases['intersection_1'], files=files)
 
 
 # files = get_files_in_folder()
-# get_mean(cases['merging_ramp'], files)
+# c = get_mean(cases['merging_ramp'], files=files)
 # files = get_files_in_folder()
-# get_mean(cases['merging_ramp'], files)
+# d = get_mean(cases['merging_ramp'], files=files)
+
+# print(a,b,a-b)
+# print(c,d,c-d)
 
 
-files = get_files_in_folder()
-plot_normal_distribution(cases['merging_ramp'], files)
+get_time(cases['intersection_1'])

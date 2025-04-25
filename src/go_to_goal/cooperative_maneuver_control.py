@@ -806,7 +806,10 @@ class Intersection:
                         not_done = False
                 
                 if not not_done: 
-                    mti = self.bot_params[bot.id].mti
+                    
+                    try: mti = self.bot_params[bot.id].mti
+                    except: mti = None
+                    
                     if bot.id in claims and not mti == 0:
                         try:
                             with self.bot_params[bot.id].lock:
