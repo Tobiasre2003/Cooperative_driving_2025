@@ -247,34 +247,30 @@ cases = {
 
 
 
-# files = get_files_in_folder()
-# a = get_mean(cases['intersection_1'], files=files)
+files = get_files_in_folder()
+a = get_mean(cases['merging_ramp'], files=files)
 
-# files = get_files_in_folder()
-# b = get_mean(cases['intersection_1'], files=files)
+files = get_files_in_folder()
+b = get_mean(cases['merging_ramp'], files=files)
 
+files = get_files_in_folder()
+c = get_mean(cases['merging_ramp'], files=files)
 
-# print('\n')
-
-# print('Mean:', a)
-# print('Mean:', b)
-# print('Diff: ', abs(a-b))
-# print('Percentage:', int((a/b)*100), '%')
+files = get_files_in_folder()
+d = get_mean(cases['merging_ramp'], files=files)
 
 
-# files = get_files_in_folder()
-# a = get_mean(cases['intersection_1'], files=files)
-# files = get_files_in_folder()
-# b = get_mean(cases['intersection_1'], files=files)
+print('\n')
 
+print('Mean:', a)
+print('Mean:', b)
+print('Mean:', c)
+print('Mean:', d)
 
-# files = get_files_in_folder()
-# c = get_mean(cases['merging_ramp'], files=files)
-# files = get_files_in_folder()
-# d = get_mean(cases['merging_ramp'], files=files)
+print('Diff: ', abs(a-b))
+print('Percentage:', int((a/b)*100), '%')
+print('Diff: ', abs(a-c))
+print('Percentage:', int((a/c)*100), '%')
+print('Diff: ', abs(a-d))
+print('Percentage:', int((a/d)*100), '%')
 
-# print(a,b,a-b)
-# print(c,d,c-d)
-
-
-get_time(cases['intersection_1'])

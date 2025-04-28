@@ -108,6 +108,28 @@ def mti_avgspeed(speedlist, dtilist, mtilist):
         else: avg_mti.append(mtilist[i])
     return avg_mti
 
+
+def lim_change(array, lim):
+    new_array = []
+    prev_element = None
+    for element in array:
+        
+        if element == None:
+            new_array.append(element)
+            continue
+            
+        if prev_element == None: 
+            prev_element = element
+            new_array.append(element)
+            continue
+        
+        new_element = prev_element + max(-lim, min(lim, element-prev_element))
+        
+        new_array.append(new_element) 
+        prev_element = new_element
+
+    return new_array
+
 def plot_data(number_of_files:int, parameters:list[str]):
     file_data = {}
     size = math.inf
@@ -157,6 +179,8 @@ def plot_data(number_of_files:int, parameters:list[str]):
             data = data_set[param_type][:size]
             time = data_set['time'][:size]
             
+            data = lim_change(data, 0.005) # hindrar snabba svängar
+            
             data = np.array(data)
             time = np.array(time)
             
@@ -169,6 +193,6 @@ def plot_data(number_of_files:int, parameters:list[str]):
     plt.show()
 
 
-plot_data(2, ['cri'])
+plot_data(2, ['cri', 'speed'])
 
 
