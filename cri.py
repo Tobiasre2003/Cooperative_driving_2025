@@ -37,13 +37,14 @@ def cri_CB(mti_B, mti_C, dti_B, dti_C):
     bot_length = 0.30
     ttc_BC = mti_B - mti_C
     #ttc_CA = mti_C - mti_B + 4 # Behöver lösas på annat sätt
-    d_b = (dti_B-dti_C) - bot_length
-    d_a = 1.5
-    k_a = d_a/(d_a+d_b)
-    k_b = d_b/(d_a+d_b)
-    print(ttc_BC,mti_C,mti_B)
+    d_b = max(0, (dti_B-dti_C) - bot_length)
+    d_a = max(0, 1.5 - d_b - bot_length)
+    #k_a = d_a/(d_a+d_b)
+    k_b = d_b/(d_a+d_b) 
+    #print(ttc_BC,mti_C,mti_B)
     #cri_a = max(math.exp(-ttc_CA * k_a), 0)
     cri_b = max(math.exp(-ttc_BC*k_b), 0)
+    if k_b <= 0: cri_b = 0
     return cri_b
 
 
@@ -97,7 +98,7 @@ def cri(file_data, size, main_file_name, ramp_file_name):
             elif ramp_file_name == first_bot:
                 cri_value = cri_CB(main_mti, ramp_mti, main_dti, ramp_dti)
             
-            cri_value = max(0, min(2, cri_value))    
+            cri_value = max(0, min(1, cri_value))    
             
         except: pass
             
