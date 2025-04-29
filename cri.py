@@ -22,14 +22,15 @@ def cri_AC(mti_A, mti_C, dti_A, dti_C):
     bot_length = 0.30
     ttc_CA = mti_C - mti_A
     #ttc_BC = mti_A + 4 - mti_C 
-    d_a = (dti_C-dti_A) - bot_length
-    d_b = 1.5 - d_a - bot_length
+    d_a = max(0, (dti_C-dti_A) - bot_length)
+    d_b = max(0, 1.5 - d_a - bot_length)
     k_a = d_a/(d_a+d_b)
     k_b = d_b/(d_a+d_b)
     #print(ttc_BC, ttc_CA, mti_C, mti_A)
     #cri_a = max(math.exp(-k_a), 0)
     cri_a = max(math.exp(-ttc_CA * k_a), 0)
     #cri_b = max(math.exp(-ttc_BC * k_b), 0)
+    if k_b <= 0: cri_a = 0
     return cri_a 
 
 
