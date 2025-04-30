@@ -30,7 +30,7 @@ def cri_AC(mti_A, mti_C, dti_A, dti_C):
     #cri_a = max(math.exp(-k_a), 0)
     cri_a = max(math.exp(-ttc_CA * k_a), 0)
     #cri_b = max(math.exp(-ttc_BC * k_b), 0)
-    if k_b <= 0: cri_a = 0
+    if ttc_CA <= 0: cri_a = None
     return cri_a 
 
 
@@ -46,6 +46,7 @@ def cri_CB(mti_B, mti_C, dti_B, dti_C):
     #cri_a = max(math.exp(-ttc_CA * k_a), 0)
     cri_b = max(math.exp(-ttc_BC*k_b), 0)
     if k_b <= 0: cri_b = 0
+    print('CBCBCBCBCBCBCB')
     return cri_b
 
 

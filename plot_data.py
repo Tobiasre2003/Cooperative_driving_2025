@@ -160,7 +160,7 @@ def plot_data(number_of_files:int, parameters:list[str]):
     try:
         for file in file_data.keys():
         
-            print(file_data[file]['speed'])
+            #print(file_data[file]['speed'])
             file_data[file]['speed'] = avg_speeds(file_data[file]['speed'])
             file_data[file]['mti'] = mti_avgspeed(file_data[file]['speed'], file_data[file]['dti'], file_data[file]['mti'])
     except: pass
