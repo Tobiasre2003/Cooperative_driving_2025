@@ -261,12 +261,17 @@ def get_plot_data(files, parameters:list[str]):
         ramp_file = list(file_data.keys())[1]
         cri(file_data, size, main_file, ramp_file)
         
-        entry_range = {}
-        for file in file_data:
-            x = file_data[file]['x']
-            y = file_data[file]['y']
-            ## TODO
-        
+    entry_range = {}
+    for file in file_data:
+        x = file_data[file]['x']
+        y = file_data[file]['y']
+        for n in range(len(x)):
+            p = [(654+2023)/2, (5237+4765)/2]
+            d = np.sqrt((x[n]-p[0])**2 + (y[n]-p[1])**2)
+            if d < 3000:
+                entry_range[file] = n
+                break
+
 
     plot_data = {}
 
@@ -296,7 +301,7 @@ def get_plot_data(files, parameters:list[str]):
 
             plot_data[file_name][name] = (param_type, time, data)
 
-    return plot_data
+    return plot_data, entry_range
 
 
 def get_files_in_folder():
@@ -321,9 +326,12 @@ def eval_cri(): # hitta nedsaktnings punkt
     r = get_files_in_folder()
 
     plot_data_dict = {}
+    entry_range = {}
 
     for n in range(len(m)):
-        plot_data_dict.update(get_plot_data([m[n], r[n]], ['cri']))
+        pd, er = get_plot_data([m[n], r[n]], ['cri'])
+        entry_range.update(er)
+        plot_data_dict.update(pd)
 
     cris = []
 
@@ -336,6 +344,7 @@ def eval_cri(): # hitta nedsaktnings punkt
             name = name[6:]
             
             plt.plot(time, data, label = name)
+            plt.plot(entry_range[file_name], 0, label = 'entry range')
             
             data.reverse()
             for v in data:
