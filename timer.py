@@ -249,30 +249,55 @@ cases = {
 
 
 
-files = get_files_in_folder()
-a = get_mean(cases['merging_ramp'], files=files)
+# files = get_files_in_folder()
+# a = get_mean(cases['merging_ramp'], files=files)
+
+# files = get_files_in_folder()
+# b = get_mean(cases['merging_ramp'], files=files)
+
+# files = get_files_in_folder()
+# c = get_mean(cases['merging_ramp'], files=files)
+
+# files = get_files_in_folder()
+# d = get_mean(cases['merging_ramp'], files=files)
+
+
+# print('\n')
+
+# print('Mean:', a)
+# print('Mean:', b)
+# print('Mean:', c)
+# print('Mean:', d)
+
+# print('Diff: ', abs(a-b))
+# print('Percentage:', int((a/b)*100), '%')
+# print('Diff: ', abs(a-c))
+# print('Percentage:', int((a/c)*100), '%')
+# print('Diff: ', abs(a-d))
+# print('Percentage:', int((a/d)*100), '%')
+
+# f0 = get_files_in_folder()
+# f1 = get_files_in_folder()
+# f2 = get_files_in_folder()
+# f3 = get_files_in_folder()
+
+# times = [get_mean(cases['merging_ramp'], files=files) for files in [f1,f2,f3]]
+# plt.bar(['körning 1', 'körning 2', 'körning 3'], times)
+# bt = get_mean(cases['merging_ramp'], files=f0)
+# plt.bar(['körning 1', 'körning 2', 'körning 3'], [bt,bt,bt])
+
+# plt.yticks(np.array(times), labels=[round(time-bt, 3) for time in times])
+
+# plt.ylim(bt, bt+5)
+# plt.ylabel('Tid [s]')
+# plt.title('Fördröjning')
+# plt.legend()
+# plt.show()
 
 files = get_files_in_folder()
-b = get_mean(cases['merging_ramp'], files=files)
+a = get_mean(cases['intersection_2'], files=files)
 
 files = get_files_in_folder()
-c = get_mean(cases['merging_ramp'], files=files)
+b = get_times(cases['intersection_2'], files=files)
 
-files = get_files_in_folder()
-d = get_mean(cases['merging_ramp'], files=files)
-
-
-print('\n')
-
-print('Mean:', a)
-print('Mean:', b)
-print('Mean:', c)
-print('Mean:', d)
-
-print('Diff: ', abs(a-b))
-print('Percentage:', int((a/b)*100), '%')
-print('Diff: ', abs(a-c))
-print('Percentage:', int((a/c)*100), '%')
-print('Diff: ', abs(a-d))
-print('Percentage:', int((a/d)*100), '%')
-
+print(sorted([float(a) for a in list(np.array(b)-a)]))

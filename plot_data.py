@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import math
 from tkinter import filedialog
 from cri import cri
+from os import listdir
+from os.path import isfile, join
 
 def write_csv(filnamn, data, rubriker):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -130,16 +132,23 @@ def lim_change(array, lim):
 
     return new_array
 
-def plot_data(number_of_files:int, parameters:list[str]):
+def plot_data(files, parameters:list[str]):
     file_data = {}
     size = math.inf
     times = []
     
-    for _ in range(number_of_files):
-        filename = filedialog.askopenfilename()
-        data = read_bot_csv_file(filename)
-        file_data[filename] = data
-        times.append(data['time'])
+    if type(files) == int:
+        for _ in range(files):
+            filename = filedialog.askopenfilename()
+            data = read_bot_csv_file(filename)
+            file_data[filename] = data
+            times.append(data['time'])
+            
+    elif type(files) == list:
+        for filename in files:
+            data = read_bot_csv_file(filename)
+            file_data[filename] = data
+            times.append(data['time'])
     
     start_time_str = start_time(times)
 
@@ -170,8 +179,8 @@ def plot_data(number_of_files:int, parameters:list[str]):
         ramp_file = list(file_data.keys())[1]
         cri(file_data, size, main_file, ramp_file)
 
-    for name in file_data.keys():
-        data_set = file_data[name]
+    for file_name in file_data.keys():
+        data_set = file_data[file_name]
         for param_type in parameters:
 
             if not param_type in data_set.keys(): continue
@@ -180,19 +189,178 @@ def plot_data(number_of_files:int, parameters:list[str]):
             time = data_set['time'][:size]
             
             data = lim_change(data, 0.005) # hindrar snabba svängar
-            
+            d = data.copy()
             data = np.array(data)
             time = np.array(time)
             
-            name = "bot 4" if "bot 4" in name else name
-            name = "bot 5" if "bot 5" in name else name
-            
+            name = "bot 4" if "bot 4" in file_name else file_name
+            name = "bot 5" if "bot 5" in file_name else file_name
+            name += f' k{file_name[-5]}' if '_k' in file_name else ''
             plt.plot(time, data, label = name + " - " + param_type)
-
+            
+            d.reverse()
+            for v in d:
+                if not v == None:
+                    print(v)
+                    break
+                
     plt.legend()
     plt.show()
+            
 
 
-plot_data(2, ['cri', 'speed'])
+
+
+
+
+
+def get_plot_data(files, parameters:list[str]):
+    file_data = {}
+    size = math.inf
+    times = []
+    
+    if type(files) == int:
+        for _ in range(files):
+            filename = filedialog.askopenfilename()
+            data = read_bot_csv_file(filename)
+            file_data[filename] = data
+            times.append(data['time'])
+            
+    elif type(files) == list:
+        for filename in files:
+            data = read_bot_csv_file(filename)
+            file_data[filename] = data
+            times.append(data['time'])
+    
+    start_time_str = start_time(times)
+
+    for file in file_data.keys():
+        data = file_data[file]
+        times = time_step(start_time_str, data['time'])
+        size = min(len(times), size)
+        file_parameters = {'time':times}
+        params = parameters.copy()
+        params.extend(['mti','dti','x','y'])
+        for param_type in params:
+            if param_type == 'cri': continue
+            float_data = to_floats(data[param_type])
+            file_parameters[param_type] = float_data
+        
+        file_data[file] = file_parameters
+
+    try:
+        for file in file_data.keys():
+        
+            print(file_data[file]['speed'])
+            file_data[file]['speed'] = avg_speeds(file_data[file]['speed'])
+            file_data[file]['mti'] = mti_avgspeed(file_data[file]['speed'], file_data[file]['dti'], file_data[file]['mti'])
+    except: pass
+    
+    if 'cri' in parameters: 
+        main_file = list(file_data.keys())[0]
+        ramp_file = list(file_data.keys())[1]
+        cri(file_data, size, main_file, ramp_file)
+        
+        entry_range = {}
+        for file in file_data:
+            x = file_data[file]['x']
+            y = file_data[file]['y']
+            ## TODO
+        
+
+    plot_data = {}
+
+    for file_name in file_data.keys():
+        data_set = file_data[file_name]
+        plot_data[file_name] = {}
+        for param_type in parameters:
+
+            if not param_type in data_set.keys(): continue
+            if param_type == 'time': continue
+            data = data_set[param_type][:size]
+            time = data_set['time'][:size]
+            
+            data = lim_change(data, 0.005) # hindrar snabba svängar
+            # data = np.array(data)
+            # time = np.array(time)
+            
+            name = "bot 4" if "bot 4" in file_name else file_name
+            name = "bot 5" if "bot 5" in file_name else file_name
+            
+            try:
+                name += f' Körning {int(file_name[-6:-4])}'
+            except:
+                try:
+                    name += f' Körning {int(file_name[-5])}'
+                except:pass
+
+            plot_data[file_name][name] = (param_type, time, data)
+
+    return plot_data
+
+
+def get_files_in_folder():
+    directory = filedialog.askdirectory(title="Select Folder:")
+    files = [directory+'/'+f for f in listdir(directory) if isfile(join(directory, f))]
+    return files
+
+
+# m = get_files_in_folder()
+# r = get_files_in_folder()
+
+# plot_data_dict = {}
+
+# for n in range(len(m)-8):
+#     plot_data([m[n], r[n]], ['cri', 'speed'])
+
+# #plt.legend()
+# plt.show()
+
+def eval_cri(): # hitta nedsaktnings punkt
+    m = get_files_in_folder()
+    r = get_files_in_folder()
+
+    plot_data_dict = {}
+
+    for n in range(len(m)):
+        plot_data_dict.update(get_plot_data([m[n], r[n]], ['cri']))
+
+    cris = []
+
+    for file_name in plot_data_dict:
+        for name in plot_data_dict[file_name]:
+            data = plot_data_dict[file_name][name][2]
+            time = plot_data_dict[file_name][name][1]
+            param_type = plot_data_dict[file_name][name][0]
+            
+            name = name[6:]
+            
+            plt.plot(time, data, label = name)
+            
+            data.reverse()
+            for v in data:
+                if not v == None:
+                    cris.append(v)
+                    break
+    s = ''
+    for a in [f'{round(c, 4)}&' for c in cris]: s+=a
+    print(s)
+    print(f'\n{np.array([1-v for v in cris]).sum()/len(cris)}')
+    
+    handles, labels = plt.gca().get_legend_handles_labels() 
+    order = [0,2,3,4,5,6,7,8,9,1] 
+    
+    
+    plt.ylabel('cri')
+    plt.xlabel('tid [s]')
+    plt.title('Cut-in risk indicator (cri)')
+    plt.legend([handles[i] for i in order], [labels[i] for i in order])
+    plt.show()
+    
+    
+eval_cri()    
+
+
+
 
 
