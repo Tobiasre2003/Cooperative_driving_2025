@@ -103,6 +103,8 @@ INTERSECTION_PATH_2 = [Point(3382, 411, 0), Point(3382,1662,0), Point(3382,2867,
 INTERSECTION_PATH_3 = [Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,411,0)]
 INTERSECTION_PATH_23 = [Point(3382, 800, 0), Point(3382,1662,0), Point(3382,2867,0), Point(3382,4420,0), Point(3382,6391,0),
                         Point(3968, 6391, 0), Point(3968,4420,0), Point(3968,2867,0), Point(3968,1662,0), Point(3968,800,0)]
+INTERSECTION_PATH_4 = [Point(716, 4109, 0), Point(1983, 4077, 0), Point(3115, 4047, 0),Point(3396, 5569, 0), Point(3418, 7401, 0)]
+INTERSECTION_PATH_5 = [Point(716, 4109, 0), Point(1983, 4077, 0), Point(3115, 4047, 0), Point(4125, 3997, 0), Point(4177, 2884, 0), Point(4124, 2265, 0), Point(4098, 950, 0)]
 
 PATH = []
 PATHS = {
@@ -113,6 +115,8 @@ PATHS = {
 	'intersection_1': INTERSECTION_PATH_1,
 	'intersection_2': INTERSECTION_PATH_2,
     'intersection_3': INTERSECTION_PATH_3,
+    'intersection_4': INTERSECTION_PATH_4,
+    'intersection_5': INTERSECTION_PATH_5,
     'intersection_23': INTERSECTION_PATH_23,
     'roundabout_1': ROUNDABOUT1,
     'roundabout_2': ROUNDABOUT2
@@ -126,6 +130,8 @@ LOOP_PATHS = {
 	'intersection_1': INTERSECTION_PATH_1,
 	'intersection_2': INTERSECTION_PATH_2,
     'intersection_3': INTERSECTION_PATH_3,
+    'intersection_4': INTERSECTION_PATH_4,
+    'intersection_5': INTERSECTION_PATH_5,
     'intersection_23': INTERSECTION_PATH_23,
     'roundabout_1': ROUNDABOUT1,
     'roundabout_2': ROUNDABOUT2

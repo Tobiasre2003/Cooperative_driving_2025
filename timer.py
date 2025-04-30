@@ -240,6 +240,8 @@ cases = {
     'intersection_1' : (Point(3846, 8028), Point(1862, 3450)), 
     'intersection_2' : (Point(3400, 500), Point(3487, 6122)), 
     'intersection_3' : (Point(3817, 6928), Point(1862, 3450)), 
+    'intersection_4' : (Point(722, 4120), Point(3361, 7297)),
+    'intersection_5' : (Point(722, 4120), Point(4095, 1221)),
     'merging_main' : (Point(1020, 8920), Point(1150, 3380)),
     'merging_ramp' : (Point(3150, 7840), Point(1150, 3380))
 }
