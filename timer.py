@@ -204,8 +204,8 @@ def get_files_in_folder():
     files = [directory+'/'+f for f in listdir(directory) if isfile(join(directory, f))]
     return files
     
-def plot_normal_distribution(case, files):
-    times = np.array(get_times(case, files))
+def plot_normal_distribution(times):
+    times = np.array(times)
     m = np.mean(times)
     s = np.sqrt(np.array([(x - m)**2 for x in times]).sum() / len(times))
     X = np.linspace(m - 4*s, m + 4*s, 4000)
@@ -249,34 +249,44 @@ cases = {
 
 
 
-files = get_files_in_folder()
-a = get_mean(cases['merging_ramp'], files=files)
+# files = get_files_in_folder()
+# a = get_mean(cases['merging_ramp'], files=files)
+# print(a)
 
-print(a)
 
 # files = get_files_in_folder()
-# b = get_mean(cases['merging_ramp'], files=files)
+# a = get_mean(cases['merging_ramp'], files=files)
+# print(a)
 
 # files = get_files_in_folder()
-# c = get_mean(cases['merging_ramp'], files=files)
-
-# files = get_files_in_folder()
-# d = get_mean(cases['merging_ramp'], files=files)
+# a = get_mean(cases['merging_ramp'], files=files)
+# print(a)
 
 
-# print('\n')
 
-# print('Mean:', a)
-# print('Mean:', b)
-# print('Mean:', c)
-# print('Mean:', d)
 
-# print('Diff: ', abs(a-b))
-# print('Percentage:', int((a/b)*100), '%')
-# print('Diff: ', abs(a-c))
-# print('Percentage:', int((a/c)*100), '%')
-# print('Diff: ', abs(a-d))
-# print('Percentage:', int((a/d)*100), '%')
+
+def box_plot(d):
+    plt.boxplot(d, patch_artist = True)
+    plt.show()
+
+
+
+
+def bar_plot(times, start_value = 0):
+    times = np.array(times) - start_value
+    labels = [f'Körning {n+1}' for n in range(len(times))]
+    mean = times.sum()/len(times)
+
+    plt.bar(labels, times, label='Individuell tid')
+    plt.axhline(mean, color='red', linestyle='--', label=f'Medelvärde: {mean:.3f} s')
+
+    plt.xticks(rotation=20)
+    plt.ylim(mean-0.5, mean+0.5)
+    plt.ylabel('Tid [s]')
+    plt.title('Fördröjning')
+    plt.legend()
+    plt.show()
 
 # f0 = get_files_in_folder()
 # f1 = get_files_in_folder()
@@ -307,4 +317,12 @@ print(a)
 # print(sorted([float(a) for a in list(np.array(b)-a)]))
 
 
+files = get_files_in_folder()
+m = get_mean(cases['intersection_1'], files=files)
 
+bar_plot(m)
+
+files = get_files_in_folder()
+a = get_times(cases['intersection_1'], files=files)
+
+bar_plot(a, m)
