@@ -249,8 +249,10 @@ cases = {
 
 
 
-# files = get_files_in_folder()
-# a = get_mean(cases['merging_ramp'], files=files)
+files = get_files_in_folder()
+a = get_mean(cases['merging_ramp'], files=files)
+
+print(a)
 
 # files = get_files_in_folder()
 # b = get_mean(cases['merging_ramp'], files=files)
@@ -294,10 +296,15 @@ cases = {
 # plt.legend()
 # plt.show()
 
-files = get_files_in_folder()
-a = get_mean(cases['intersection_2'], files=files)
 
-files = get_files_in_folder()
-b = get_times(cases['intersection_2'], files=files)
 
-print(sorted([float(a) for a in list(np.array(b)-a)]))
+# files = get_files_in_folder()
+# a = get_mean(cases['intersection_2'], files=files)
+
+# files = get_files_in_folder()
+# b = get_times(cases['intersection_2'], files=files)
+
+# print(sorted([float(a) for a in list(np.array(b)-a)]))
+
+
+
