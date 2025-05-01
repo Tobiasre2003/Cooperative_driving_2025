@@ -273,19 +273,21 @@ def box_plot(d):
 
 
 
-def bar_plot(times, start_value = 0):
+def bar_plot(title, times, start_value = 0):
     times = np.array(times) - start_value
     labels = [f'Körning {n+1}' for n in range(len(times))]
     mean = times.sum()/len(times)
 
     plt.bar(labels, times, label='Individuell tid')
     plt.axhline(mean, color='red', linestyle='--', label=f'Medelvärde: {mean:.3f} s')
-
     plt.xticks(rotation=20)
-    plt.ylim(mean-0.5, mean+0.5)
+    
+    print(f'max: {max(times)}, min: {min(times)}')
+    
+    plt.ylim(max(min(times)-0.05,0) , max(times)+0.15)
     plt.ylabel('Tid [s]')
-    plt.title('Fördröjning')
-    plt.legend()
+    plt.title(title)
+    plt.legend(loc='upper left')
     plt.show()
 
 # f0 = get_files_in_folder()
@@ -316,13 +318,12 @@ def bar_plot(times, start_value = 0):
 
 # print(sorted([float(a) for a in list(np.array(b)-a)]))
 
+case_name = 'merging_ramp'
+
+# files = get_files_in_folder()
+# a = get_times(cases[case_name], files=files)
+# bar_plot('Friflödestiden',a)
 
 files = get_files_in_folder()
-m = get_mean(cases['intersection_1'], files=files)
-
-bar_plot(m)
-
-files = get_files_in_folder()
-a = get_times(cases['intersection_1'], files=files)
-
-bar_plot(a, m)
+a = get_times(cases[case_name], files=files)
+bar_plot('Kontrollerad fördröjning', a)
