@@ -7,6 +7,7 @@ from tkinter import filedialog
 from cri import cri
 from os import listdir
 from os.path import isfile, join
+import scipy.signal as ss
 
 def write_csv(filnamn, data, rubriker):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -132,6 +133,20 @@ def lim_change(array, lim):
 
     return new_array
 
+
+def median_filer(data, data_range):
+    new_data = []
+    for n in range(len(data)):
+        sample = data[max(0, n-data_range):n] + data[n:min(len(data), n+data_range)]
+        while None in sample:sample.remove(None)
+        
+        if len(sample) == 0: 
+            new_data.append(None)
+        else:
+            new_data.append(np.median(np.array(sample)))
+    
+    return new_data
+
 def plot_data(files, parameters:list[str]):
     file_data = {}
     size = math.inf
@@ -169,7 +184,7 @@ def plot_data(files, parameters:list[str]):
     try:
         for file in file_data.keys():
         
-            print(file_data[file]['speed'])
+            #print(file_data[file]['speed'])
             file_data[file]['speed'] = avg_speeds(file_data[file]['speed'])
             file_data[file]['mti'] = mti_avgspeed(file_data[file]['speed'], file_data[file]['dti'], file_data[file]['mti'])
     except: pass
@@ -262,16 +277,22 @@ def get_plot_data(files, parameters:list[str]):
         cri(file_data, size, main_file, ramp_file)
         
     entry_range = {}
+    camera_switch = {}
     for file in file_data:
+        camera_switch[file] = []
         x = file_data[file]['x']
         y = file_data[file]['y']
         for n in range(len(x)):
-            p = [(654+2023)/2, (5237+4765)/2]
-            d = np.sqrt((x[n]-p[0])**2 + (y[n]-p[1])**2)
-            if d < 3000:
-                entry_range[file] = n
-                break
-
+            if not file in entry_range:
+                p = [(654+2023)/2, (5237+4765)/2]
+                d = np.sqrt((x[n]-p[0])**2 + (y[n]-p[1])**2)
+                if d < 3000:
+                    entry_range[file] = n
+            
+            if n == 0: continue
+            d = np.sqrt((x[n]-x[n-1])**2 + (y[n]-y[n-1])**2)
+            if d > 200:
+                camera_switch[file].append(file_data[file]['time'][n])
 
     plot_data = {}
 
@@ -285,7 +306,10 @@ def get_plot_data(files, parameters:list[str]):
             data = data_set[param_type][:size]
             time = data_set['time'][:size]
             
-            data = lim_change(data, 0.005) # hindrar snabba svängar     0.005
+            # data = lim_change(data, 0.05) # hindrar snabba svängar     0.005
+            # data = median_filer(data, 10)
+            #print(data)
+            
             # data = np.array(data)
             # time = np.array(time)
             
@@ -301,7 +325,7 @@ def get_plot_data(files, parameters:list[str]):
 
             plot_data[file_name][name] = (param_type, time, data)
 
-    return plot_data, entry_range
+    return plot_data, entry_range, camera_switch
 
 
 def get_files_in_folder():
@@ -323,17 +347,18 @@ def get_files_in_folder():
 
 
 
-def eval_cri(): # hitta nedsaktnings punkt
-    m = get_files_in_folder()
-    r = get_files_in_folder()
-
+def eval_cri(m, r): # hitta nedsaktnings punkt
     plot_data_dict = {}
     entry_range = {}
+    camera_switch = {}
+
+    plt.figure(figsize=(10, 10))
 
     for n in range(len(m)):
-        pd, er = get_plot_data([m[n], r[n]], ['cri'])
+        pd, er, cs = get_plot_data([m[n], r[n]], ['cri'])
         entry_range.update(er)
         plot_data_dict.update(pd)
+        camera_switch.update(cs)
 
     cris = []
 
@@ -341,8 +366,10 @@ def eval_cri(): # hitta nedsaktnings punkt
     entry_sign_c = 0
     last_cri = []
     first_cri = []
+    last_time = 0
     
     for file_name in plot_data_dict:
+                
         for name in plot_data_dict[file_name]:
             data = plot_data_dict[file_name][name][2]
             time = plot_data_dict[file_name][name][1]
@@ -352,8 +379,12 @@ def eval_cri(): # hitta nedsaktnings punkt
             
             plt.plot(time, data, label = name)
             #plt.plot(time[entry_range[file_name]], 0, marker = 'o')
-            plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1)
+            if not len(m) == 1:
+                plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1)
+            else:
+                plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1, label = 'Inträdesavstånd')
             
+
             if not time[entry_range[file_name]] == None:
                 entry_sign_x += time[entry_range[file_name]] 
                 entry_sign_c += 1
@@ -364,11 +395,50 @@ def eval_cri(): # hitta nedsaktnings punkt
             first_cri.append(entry_range_cri)
             
             data.reverse()
-            for v in data:
+            time.reverse()
+            for i in range(len(data)):
+                v = data[i]
                 if not v == None:
                     cris.append(entry_range_cri - v)
                     last_cri.append(v)
+                    last_time = time[i] if time[i] > last_time else last_time
                     break
+                
+    cs = {} 
+        
+    for file_name in camera_switch:
+        
+        csl = camera_switch[file_name]
+        
+        color = 'red'
+        if 'bot 5' in file_name: color = 'blue'
+        new_csl = []
+        
+        for t in csl:
+            if t < last_time:
+                new_csl.append(t)
+        
+        if len(new_csl) == 0: continue
+        
+        try:
+            cs[color][0] = min(cs[color][0], new_csl[0])
+            cs[color][1] = max(cs[color][1], new_csl[-1])
+        except:
+            cs[color] = [new_csl[0], new_csl[-1]]
+        
+    for color in cs:
+        if color == 'red':
+            style = '--'
+            label = 'Kamera byte för robot 1'
+        else:
+            style = '-.'
+            label = 'Kamera byte för robot 2'
+        plt.axvline(x=cs[color][0], color=color, linestyle=style, linewidth=2, label = label)
+        plt.axvline(x=cs[color][-1], color=color, linestyle=style, linewidth=2)
+
+    
+                
+        
     s = ''
     for a in [f'{round(c, 4)}&' for c in cris]: s+=a
     print(s)
@@ -378,20 +448,30 @@ def eval_cri(): # hitta nedsaktnings punkt
     
     print(np.array(first_cri).sum()/len(first_cri))
     
+    if len(m) == 10:
+        handles, labels = plt.gca().get_legend_handles_labels() 
+        order = [0,2,3,4,5,6,7,8,9,1,10,11] 
     
-    handles, labels = plt.gca().get_legend_handles_labels() 
-    order = [0,2,3,4,5,6,7,8,9,1] 
-    
-    plt.text(entry_sign_x/entry_sign_c, 0.2, 'Inträdesavstånd', ha='center', va='top', fontsize=10,
+    if not len(m) == 1: 
+        plt.text(entry_sign_x/entry_sign_c, 0.5, 'Inträdesavstånd', ha='center', va='top', fontsize=10,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1))
     plt.ylabel('cri')
     plt.xlabel('tid [s]')
     plt.title('Cut-in risk indicator (cri)')
-    plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
+    if len(m) == 10: plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
+    else: plt.legend()
+    
     plt.show()
     
-    
-eval_cri()    
+
+
+m = get_files_in_folder()
+r = get_files_in_folder()
+
+# m = [filedialog.askopenfilename()]
+# r = [filedialog.askopenfilename()]
+
+eval_cri(m,r)    
 
 
 
