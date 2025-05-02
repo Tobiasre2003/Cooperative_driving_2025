@@ -334,16 +334,6 @@ def get_files_in_folder():
     return files
 
 
-# m = get_files_in_folder()
-# r = get_files_in_folder()
-
-# plot_data_dict = {}
-
-# for n in range(len(m)-8):
-#     plot_data([m[n], r[n]], ['cri', 'speed'])
-
-# #plt.legend()
-# plt.show()
 
 
 
@@ -352,7 +342,7 @@ def eval_cri(m, r): # hitta nedsaktnings punkt
     entry_range = {}
     camera_switch = {}
 
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(9, 9))
 
     for n in range(len(m)):
         pd, er, cs = get_plot_data([m[n], r[n]], ['cri'])
@@ -458,7 +448,7 @@ def eval_cri(m, r): # hitta nedsaktnings punkt
     plt.ylabel('cri')
     plt.xlabel('tid [s]')
     plt.title('Cut-in risk indicator (cri)')
-    if len(m) == 10: plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
+    if len(m) == 10: plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='center left')
     else: plt.legend()
     
     plt.show()
