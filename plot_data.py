@@ -285,7 +285,7 @@ def get_plot_data(files, parameters:list[str]):
             data = data_set[param_type][:size]
             time = data_set['time'][:size]
             
-            data = lim_change(data, 0.005) # hindrar snabba svängar
+            data = lim_change(data, 0.005) # hindrar snabba svängar     0.005
             # data = np.array(data)
             # time = np.array(time)
             
@@ -321,6 +321,8 @@ def get_files_in_folder():
 # #plt.legend()
 # plt.show()
 
+
+
 def eval_cri(): # hitta nedsaktnings punkt
     m = get_files_in_folder()
     r = get_files_in_folder()
@@ -335,6 +337,11 @@ def eval_cri(): # hitta nedsaktnings punkt
 
     cris = []
 
+    entry_sign_x = 0
+    entry_sign_c = 0
+    last_cri = []
+    first_cri = []
+    
     for file_name in plot_data_dict:
         for name in plot_data_dict[file_name]:
             data = plot_data_dict[file_name][name][2]
@@ -344,26 +351,43 @@ def eval_cri(): # hitta nedsaktnings punkt
             name = name[6:]
             
             plt.plot(time, data, label = name)
-            plt.plot(entry_range[file_name], 0, label = 'entry range')
+            #plt.plot(time[entry_range[file_name]], 0, marker = 'o')
+            plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1)
+            
+            if not time[entry_range[file_name]] == None:
+                entry_sign_x += time[entry_range[file_name]] 
+                entry_sign_c += 1
+            
+            entry_range_cri = data[entry_range[file_name]]
+            entry_range_cri = entry_range_cri if not entry_range_cri == None else 1
+            
+            first_cri.append(entry_range_cri)
             
             data.reverse()
             for v in data:
                 if not v == None:
-                    cris.append(v)
+                    cris.append(entry_range_cri - v)
+                    last_cri.append(v)
                     break
     s = ''
     for a in [f'{round(c, 4)}&' for c in cris]: s+=a
     print(s)
-    print(f'\n{np.array([1-v for v in cris]).sum()/len(cris)}')
+    print(f'\n{np.array(cris).sum()/len(cris)}')
+    
+    print(np.array(last_cri).sum()/len(last_cri))
+    
+    print(np.array(first_cri).sum()/len(first_cri))
+    
     
     handles, labels = plt.gca().get_legend_handles_labels() 
     order = [0,2,3,4,5,6,7,8,9,1] 
     
-    
+    plt.text(entry_sign_x/entry_sign_c, 0.2, 'Inträdesavstånd', ha='center', va='top', fontsize=10,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1))
     plt.ylabel('cri')
     plt.xlabel('tid [s]')
     plt.title('Cut-in risk indicator (cri)')
-    plt.legend([handles[i] for i in order], [labels[i] for i in order])
+    plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
     plt.show()
     
     
