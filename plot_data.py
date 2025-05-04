@@ -147,6 +147,23 @@ def median_filer(data, data_range):
     
     return new_data
 
+def moving_average(data, data_range):
+    new_data = []
+    for n in range(len(data)):
+        sample = data[max(0, n-data_range):n] + data[n:min(len(data), n+data_range)]
+        while None in sample:sample.remove(None)
+        
+        if len(sample) == 0: 
+            new_data.append(None)
+        else:
+            new_data.append(np.mean(np.array(sample)))
+    
+    return new_data
+
+
+
+
+
 def plot_data(files, parameters:list[str]):
     file_data = {}
     size = math.inf
@@ -308,6 +325,7 @@ def get_plot_data(files, parameters:list[str]):
             
             # data = lim_change(data, 0.05) # hindrar snabba svängar     0.005
             # data = median_filer(data, 10)
+            data = moving_average(data, 5)
             #print(data)
             
             # data = np.array(data)
@@ -337,12 +355,12 @@ def get_files_in_folder():
 
 
 
-def eval_cri(m, r): # hitta nedsaktnings punkt
+def eval_cri(m, r, cb = False): # hitta nedsaktnings punkt
     plot_data_dict = {}
     entry_range = {}
     camera_switch = {}
 
-    plt.figure(figsize=(9, 9))
+    #plt.figure(figsize=(9, 9))
 
     for n in range(len(m)):
         pd, er, cs = get_plot_data([m[n], r[n]], ['cri'])
@@ -393,38 +411,40 @@ def eval_cri(m, r): # hitta nedsaktnings punkt
                     last_cri.append(v)
                     last_time = time[i] if time[i] > last_time else last_time
                     break
-                
-    cs = {} 
-        
-    for file_name in camera_switch:
-        
-        csl = camera_switch[file_name]
-        
-        color = 'red'
-        if 'bot 5' in file_name: color = 'blue'
-        new_csl = []
-        
-        for t in csl:
-            if t < last_time:
-                new_csl.append(t)
-        
-        if len(new_csl) == 0: continue
-        
-        try:
-            cs[color][0] = min(cs[color][0], new_csl[0])
-            cs[color][1] = max(cs[color][1], new_csl[-1])
-        except:
-            cs[color] = [new_csl[0], new_csl[-1]]
-        
-    for color in cs:
-        if color == 'red':
-            style = '--'
-            label = 'Kamera byte för robot 1'
-        else:
-            style = '-.'
-            label = 'Kamera byte för robot 2'
-        plt.axvline(x=cs[color][0], color=color, linestyle=style, linewidth=2, label = label)
-        plt.axvline(x=cs[color][-1], color=color, linestyle=style, linewidth=2)
+      
+    if cb:         
+        cs = {} 
+            
+        for file_name in camera_switch:
+            
+            csl = camera_switch[file_name]
+            
+            color = 'red'
+            if 'bot 5' in file_name: color = 'blue'
+            new_csl = []
+            
+            for t in csl:
+                if t < last_time:
+                    new_csl.append(t)
+            
+            if len(new_csl) == 0: continue
+            
+            try:
+                cs[color][0] = min(cs[color][0], new_csl[0])
+                cs[color][1] = max(cs[color][1], new_csl[-1])
+            except:
+                cs[color] = [new_csl[0], new_csl[-1]]
+            
+        for color in cs:
+            if color == 'red':
+                style = '--'
+                label = 'Kamerabyte 1'
+            else:
+                style = '-.'
+                label = 'Kamerabyte 2'
+            # plt.axvline(x=cs[color][0], color=color, linestyle=style, linewidth=1, label = label)
+            # plt.axvline(x=cs[color][-1], color=color, linestyle=style, linewidth=1)
+            plt.axvspan(cs[color][0], cs[color][-1], color=color, alpha=0.15, label=label)
 
     
                 
@@ -440,15 +460,16 @@ def eval_cri(m, r): # hitta nedsaktnings punkt
     
     if len(m) == 10:
         handles, labels = plt.gca().get_legend_handles_labels() 
-        order = [0,2,3,4,5,6,7,8,9,1,10,11] 
+        if cb: order = [0,2,3,4,5,6,7,8,9,1,10,11] 
+        else: order = [0,2,3,4,5,6,7,8,9,1] 
     
     if not len(m) == 1: 
-        plt.text(entry_sign_x/entry_sign_c, 0.5, 'Inträdesavstånd', ha='center', va='top', fontsize=10,
+        plt.text(entry_sign_x/entry_sign_c, 0.2, 'Inträdesavstånd', ha='center', va='top', fontsize=10,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1))
     plt.ylabel('cri')
     plt.xlabel('tid [s]')
     plt.title('Cut-in risk indicator (cri)')
-    if len(m) == 10: plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='center left')
+    if len(m) == 10: plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
     else: plt.legend()
     
     plt.show()
@@ -461,7 +482,7 @@ r = get_files_in_folder()
 # m = [filedialog.askopenfilename()]
 # r = [filedialog.askopenfilename()]
 
-eval_cri(m,r)    
+eval_cri(m,r, True)    
 
 
 
