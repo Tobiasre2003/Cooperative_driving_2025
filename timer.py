@@ -327,3 +327,4 @@ case_name = 'merging_ramp'
 files = get_files_in_folder()
 a = get_times(cases[case_name], files=files)
 bar_plot('Kontrollerad fördröjning', a)
+
