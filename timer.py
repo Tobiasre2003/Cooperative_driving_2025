@@ -319,7 +319,7 @@ def bar_plot(title, times, start_value = 0):
 
 # print(sorted([float(a) for a in list(np.array(b)-a)]))
 
-case_name = 'intersection_1'
+case_name = 'roundabout_2'
 
 # files = get_files_in_folder()
 # a = get_times(cases[case_name], files=files)
@@ -327,5 +327,5 @@ case_name = 'intersection_1'
 
 files = get_files_in_folder()
 a = get_times(cases[case_name], files=files)
-bar_plot('Kontrollerad fördröjning', a)
+bar_plot('Friflödestiden', a)
 

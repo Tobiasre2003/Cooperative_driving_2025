@@ -355,7 +355,7 @@ def get_files_in_folder():
 
 
 
-def eval_cri(m, r, cb = False): # hitta nedsaktnings punkt
+def eval_cri(m, r, cb = False, ia=False): # hitta nedsaktnings punkt
     plot_data_dict = {}
     entry_range = {}
     camera_switch = {}
@@ -387,11 +387,12 @@ def eval_cri(m, r, cb = False): # hitta nedsaktnings punkt
             
             plt.plot(time, data, label = name)
             #plt.plot(time[entry_range[file_name]], 0, marker = 'o')
-            if not len(m) == 1:
-                plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1)
-            else:
-                plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1, label = 'Inträdesavstånd')
-            
+            if ia:
+                if not len(m) == 1:
+                    plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1)
+                else:
+                    plt.axvline(x=time[entry_range[file_name]], color='gray', linestyle='--', linewidth=1, label = 'Inträdesavstånd')
+                
 
             if not time[entry_range[file_name]] == None:
                 entry_sign_x += time[entry_range[file_name]] 
@@ -463,7 +464,7 @@ def eval_cri(m, r, cb = False): # hitta nedsaktnings punkt
         if cb: order = [0,2,3,4,5,6,7,8,9,1,10,11] 
         else: order = [0,2,3,4,5,6,7,8,9,1] 
     
-    if not len(m) == 1: 
+    if not len(m) == 1 and ia: 
         plt.text(entry_sign_x/entry_sign_c, 0.2, 'Inträdesavstånd', ha='center', va='top', fontsize=10,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1))
     plt.ylabel('cri')
@@ -482,7 +483,7 @@ r = get_files_in_folder()
 # m = [filedialog.askopenfilename()]
 # r = [filedialog.askopenfilename()]
 
-eval_cri(m,r, True)    
+eval_cri(m,r, True, False)    
 
 
 
