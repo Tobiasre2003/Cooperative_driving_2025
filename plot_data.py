@@ -477,15 +477,96 @@ def eval_cri(m, r, cb = False, ia=False): # hitta nedsaktnings punkt
     
 
 
-m = get_files_in_folder()
-r = get_files_in_folder()
+# m = get_files_in_folder()
+# r = get_files_in_folder()
 
-# m = [filedialog.askopenfilename()]
-# r = [filedialog.askopenfilename()]
+# # m = [filedialog.askopenfilename()]
+# # r = [filedialog.askopenfilename()]
 
-eval_cri(m,r, True, True)    
+# eval_cri(m,r, True, True)    
 
 
+
+
+
+def plot_mult(data:list[list], dist:int):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    for n in range(len(data)):
+        [x,y] = data[n]
+        ax.plot(x, y, n*dist, color='r')
+
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.legend()
+    plt.show()
+
+
+
+def eval_cri_2(folders): 
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    for i in range(len(folders)):
+        
+        m,r = folders[i]
+    
+        plot_data_dict = {}
+        entry_range = {}
+        camera_switch = {}
+
+
+        for n in range(len(m)):
+            pd, er, cs = get_plot_data([m[n], r[n]], ['cri'])
+            entry_range.update(er)
+            plot_data_dict.update(pd)
+            camera_switch.update(cs)
+
+ 
+        for file_name in plot_data_dict:
+                    
+            for name in plot_data_dict[file_name]:
+                data = plot_data_dict[file_name][name][2]
+                time = plot_data_dict[file_name][name][1]
+                param_type = plot_data_dict[file_name][name][0]
+                name = name[6:]
+                
+                z = np.full_like(time, i*10)
+                data = np.array([val if not val == None else np.inf for val in data])
+                time = np.array(time)
+                
+                
+                ax.plot(time, data, z)
+                
+
+
+    ax.set_xlabel('Tid [s]')
+    ax.set_ylabel('CRI')
+
+    # ax.legend()
+    plt.show()
+    
+    
+
+m1 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k9.csv']
+r1 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k9.csv']
+
+
+m2 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k9.csv']
+r2 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k9.csv']
+
+
+m3 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k9.csv']
+r3 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k9.csv']
+
+
+folders = [[m1,r1],[m2,r2],[m3,r3]]
+# folders = [[get_files_in_folder(m),get_files_in_folder(r)] for [m,r] in folders]
+
+eval_cri_2(folders)
 
 
 
