@@ -267,29 +267,248 @@ cases = {
 
 
 
-def box_plot(d):
-    plt.boxplot(d, patch_artist = True)
+# def box_plot(title, times_list, ffss):
+#     fig, axs = plt.subplots(1, len(times_list)*2, figsize=(2, 5))  
+
+#     for n in range(len(times_list)):
+#         times = times_list[n]
+#         times = np.array(times)
+#         ffs = np.array(ffss[n])
+        
+#         print(f'FFT: max: {max(ffs)}, min: {min(ffs)}')
+#         print(f'KF: max: {max(times)}, min: {min(times)}')
+        
+#         axs[2*n].boxplot(ffs, patch_artist = True)
+#         axs[2*n].set_title(f'FFT scenario {n}')   
+#         axs[2*n+1].boxplot(times, patch_artist = True)
+#         axs[2*n+1].set_title(f'KF scenario {n}')  
+    
+#     plt.tight_layout()
+#     plt.show()
+
+
+def box_plot(title, times_list, ffss):
+    num_scenarios = len(times_list)
+    fig, axs = plt.subplots(1, num_scenarios * 2, figsize=( 2.5*num_scenarios , 6))
+    scenario_positions = []
+
+    if num_scenarios == 1: axs = [axs] 
+
+    for n in range(num_scenarios):
+
+        ffs = np.array(ffss[n])
+        min_f = np.min(ffs)
+        max_f = np.max(ffs)
+        median_f = np.median(ffs)
+        q1_f, q3_f = np.percentile(ffs, [25, 75])
+
+        ax_fft = axs[2 * n]
+        ax_fft.boxplot(ffs, patch_artist=True, widths=0.5, whis=(0, 100))
+        ax_fft.set_title(f'FFT')
+        ax_fft.set_xticks([])
+        ax_fft.set_yticks([])  
+
+        times = np.array(times_list[n])
+        min_t = np.min(times)
+        max_t = np.max(times)
+        median_t = np.median(times)
+        q1_t, q3_t = np.percentile(times, [25, 75])
+
+        ax_kf = axs[2 * n + 1]
+        ax_kf.boxplot(times, patch_artist=True, widths=0.5, whis=(0, 100))
+        ax_kf.set_title(f'KF')
+        ax_kf.set_xticks([])
+        ax_kf.set_yticks([])  
+
+        
+        for ax, values_colors in zip([ax_fft, ax_kf],
+            [[(min_f, 'black'),(q1_f, 'black'),(median_f, 'black'),(q3_f, 'black'),(max_f, 'black')],
+             [(min_t, 'black'),(q1_t, 'black'),(median_t, 'black'),(q3_t, 'black'),(max_t, 'black')]]):
+
+            for val, color in values_colors:
+                ax.annotate(f'{val:.1f}', xy=(0.995, val), xycoords=('axes fraction', 'data'),
+                            fontsize=8, color=color, ha='right', va='center')
+                
+        scenario_positions.append((ax_fft, ax_kf)) 
+                
+    fig.suptitle(title)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    for i, (ax_fft, ax_kf) in enumerate(scenario_positions):
+        pos_fft = ax_fft.get_position()
+        pos_kf = ax_kf.get_position()
+        center_x = (pos_fft.x0 + pos_kf.x1) / 2
+        fig.text(center_x, 0.9, f'Scenario {i+1}', ha='center', fontsize=12, weight='bold')
+
     plt.show()
 
 
+# def box_plot(title, times_list, ffss):
+#     import matplotlib.pyplot as plt
+#     import numpy as np
+
+#     num_scenarios = len(times_list)
+#     fig, axs = plt.subplots(num_scenarios, 2, figsize=(10, 2.5 * num_scenarios))
+
+#     if num_scenarios == 1:
+#         axs = [axs]  # axs blir en 1D-array om bara ett scenario
+
+#     scenario_positions = []
+
+#     for n in range(num_scenarios):
+#         ffs = np.array(ffss[n])
+#         min_f, max_f = np.min(ffs), np.max(ffs)
+#         median_f = np.median(ffs)
+#         q1_f, q3_f = np.percentile(ffs, [25, 75])
+
+#         times = np.array(times_list[n])
+#         min_t, max_t = np.min(times), np.max(times)
+#         median_t = np.median(times)
+#         q1_t, q3_t = np.percentile(times, [25, 75])
+
+#         ax_fft = axs[n][0] if num_scenarios > 1 else axs[0]
+#         ax_kf = axs[n][1] if num_scenarios > 1 else axs[1]
+
+#         # Horisontella boxplots
+#         ax_fft.boxplot(ffs, patch_artist=True, widths=0.5, whis=(0, 100), vert=False)
+#         ax_kf.boxplot(times, patch_artist=True, widths=0.5, whis=(0, 100), vert=False)
+
+#         ax_fft.set_title("FFT", loc='left')
+#         ax_kf.set_title("KF", loc='left')
+
+#         for ax in [ax_fft, ax_kf]:
+#             ax.set_yticks([])
+#             ax.set_xticks([])
+
+#         for ax, values_colors in zip([ax_fft, ax_kf],
+#             [[(min_f, 'black'), (q1_f, 'black'), (median_f, 'black'), (q3_f, 'black'), (max_f, 'black')],
+#              [(min_t, 'black'), (q1_t, 'black'), (median_t, 'black'), (q3_t, 'black'), (max_t, 'black')]]):
+
+#             for val, color in values_colors:
+#                 ax.annotate(f'{val:.1f}', xy=(val, 0.85), xycoords=('data', 'axes fraction'),
+#                             fontsize=8, color=color, ha='center', va='bottom')
+
+#         scenario_positions.append((ax_fft, ax_kf))
+
+#     fig.suptitle(title, fontsize=14)
+
+#     # Justera layouten för att få plats med vänstermarginal
+#     plt.subplots_adjust(left=0.2, top=0.92, bottom=0.05)
+
+#     # Lägg till scenariotitlar efter layoutjustering
+#     for i, (ax_fft, _) in enumerate(scenario_positions):
+#         pos = ax_fft.get_position()
+#         center_y = (pos.y0 + pos.y1) / 2
+#         fig.text(0.1, center_y, f'Scenario {i+1}', ha='right', va='center', fontsize=12, weight='bold')
+
+#     plt.show()
 
 
-def bar_plot(title, times, start_value = 0):
-    times = np.array(times) - start_value
-    labels = [f'Körning {n+1}' for n in range(len(times))]
-    mean = times.sum()/len(times)
 
-    plt.bar(labels, times, label='Individuell tid')
-    plt.axhline(mean, color='red', linestyle='--', label=f'Medelvärde: {mean:.3f} s')
-    plt.xticks(rotation=20)
+# def bar_plot(title, times, start_value = 0):
+#     times = np.array(times) - start_value
+#     labels = [f'Körning {n+1}' for n in range(len(times))]
+#     mean = times.sum()/len(times)
+
+#     plt.bar(labels, times, label='Individuell tid')
+#     plt.axhline(mean, color='red', linestyle='--', label=f'Medelvärde: {mean:.3f} s')
+#     plt.xticks(rotation=20)
     
-    print(f'max: {max(times)}, min: {min(times)}')
+#     print(f'max: {max(times)}, min: {min(times)}')
     
-    plt.ylim(max(min(times)-0.05,0) , max(times)+0.15)
-    plt.ylabel('Tid [s]')
+#     plt.ylim(max(min(times)-0.05,0) , max(times)+0.15)
+#     plt.ylabel('Tid [s]')
+#     plt.title(title)
+#     plt.legend(loc='upper left')
+#     plt.show()
+
+# def bar_plot(title, tests):
+#     data_list = []
+#     labels_list = []
+#     for data in tests:
+#         labels = [f'Scenario {n+1}' for n in range(len(data))]
+#         print(f'max: {max(data)}, min: {min(data)}')
+#         data_list.extend(data)
+#         labels_list.extend(labels)
+
+#     data_list = np.array(data_list)
+#     labels_list = np.array(labels_list)
+    
+#     print(data_list, labels_list)
+    
+#     plt.bar(labels_list, data_list)
+
+#     # plt.xticks(rotation=20)
+#     # # plt.ylim(max(min(data)-0.05,0) , max(data)+0.15)
+#     # plt.ylabel('Tid [s]')
+#     # plt.title(title)
+#     # plt.legend(loc='upper left')
+#     plt.show()
+
+
+
+
+
+
+
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import itertools
+
+def bar_plot(title, tests, names):
+    
+    data_list = []
+    labels_list = []
+    colors = []
+
+    color_cycle = itertools.cycle(plt.cm.tab10.colors)  # 10 färger
+
+    for i, data in enumerate(tests):
+        color = next(color_cycle)
+        labels = [f'{names[i][0]}{j+1}' for j in range(len(data))]
+
+        print(f'Test {i+1} max: {max(data)}, min: {min(data)}')
+
+        data_list.extend(data)
+        labels_list.extend(labels)
+        colors.extend([tuple(color)] * len(data))  # Konvertera till tuple
+
+    data_list = np.array(data_list)
+    labels_list = np.array(labels_list)
+
+    # Plot
+    plt.figure(figsize=(6, 5))
+    bars = plt.bar(labels_list, data_list, color=colors)
+    
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2, height * 1.01, f'{height:.4f}', 
+                ha='center', va='bottom', fontsize=8)
+
+    # Skapa legend
+    unique_colors = list(dict.fromkeys(colors))
+    legend_labels = [f"{names[i]}" for i in range(len(unique_colors))]
+    legend_handles = [plt.Rectangle((0,0),1,1, color=col) for col in unique_colors]
+    plt.legend(legend_handles, legend_labels,loc='lower left')
+ 
+    #plt.xticks(rotation=45, ha='right')
+    #plt.ylabel('Tid [s]')
     plt.title(title)
-    plt.legend(loc='upper left')
+    plt.tight_layout()
     plt.show()
+
+
+
+
+
+
+
+
+
+
+
 
 # f0 = get_files_in_folder()
 # f1 = get_files_in_folder()
@@ -319,13 +538,91 @@ def bar_plot(title, times, start_value = 0):
 
 # print(sorted([float(a) for a in list(np.array(b)-a)]))
 
-case_name = 'roundabout_2'
+
+
+
+# case_name = 'intersection_1'
 
 # files = get_files_in_folder()
 # a = get_times(cases[case_name], files=files)
-# bar_plot('Friflödestiden',a)
+# bar_plot('Friflödestiden', a)
 
-files = get_files_in_folder()
-a = get_times(cases[case_name], files=files)
-bar_plot('Friflödestiden', a)
+ff1 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k9.csv']      
+kf1 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_1/bot 5_intersection_1_k1-10/bot 5_intersection_1_k9.csv']
+
+ff2 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k9.csv']      
+kf2 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_2/bot 4_intersection_2_slow_k1-10/bot 4_intersection_2_slow_k9.csv']
+
+ff3 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_4_intersection_2_alone_k1-10/bot 4_intersection_2_alone_k9.csv']      
+kf3 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_3/bot 4_intersection_2_with4_slow_k1-k10/bot 4_intersection_2_with4_slow_k9.csv'] 
+
+ff4 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k9.csv']      
+kf4 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_4/bot 5_intersection_3_with5_slow_k1-10/bot 5_intersection_3_with5_slow_k9.csv']
+
+ff5 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_intersection_1_alone_k1-10/bot 5_intersection_1_alone_k9.csv']      
+kf5 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/intersection_test_5/bot 5_intersection_1_with5_slow_k1-10/bot 5_intersection_1_with5_slow_k9.csv']
+
+inter = [ff1, kf1, ff2, kf2, ff3, kf3, ff4, kf4, ff5, kf5]
+
+
+# times = []
+# start_values = []
+
+# c = ['intersection_1','intersection_2','intersection_2','intersection_3','intersection_1']
+
+# for n in range(len(c)):
+#     case_name = c[n]
+#     ff = inter[2*n]
+#     files = inter[2*n+1]
+
+#     t = get_times(cases[case_name], files=ff)
+#     start_values.append(t)
+#     t = get_times(cases[case_name], files=files)
+#     times.append(t)
+
+
+# box_plot('Tidsmätningar för korsning', times, start_values)
+
+
+mfft = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot_5_merging_ramp_alone_k1-k10/bot 5_merging_ramp_alone_k9.csv']
+mkf1 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k9.csv']
+mkf2 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k9.csv']
+mkf3 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k9.csv']
+
+merge = [mfft, mkf1, mfft, mkf2 ,mfft, mkf3]
+
+old_mkf1 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_1_k1-10/bot 5_old_merging_ramp_1_k9.csv']
+old_mkf2 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_2_k1-10/bot 5_old_merging_ramp_2_k9.csv']
+old_mkf3 = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/merging24_(old)/bot 5_old_merging_ramp_3_k1-10/bot 5_old_merging_ramp_3_k9.csv']
+
+old_merge = [mfft,old_mkf1,mfft,old_mkf2,mfft,old_mkf3]
+
+
+rfft = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/bot 4_Roundabout_alone_k1-10/bot 4_Roundabout_fast_k9.csv']
+rkf = ['C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k1.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k10.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k2.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k3.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k4.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k5.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k6.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k7.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k8.csv', 'C:/Users/tobia/Kandidatarbete/Evaluerings data/cooperative_control/roundabout_test_1/bot 4_Roundabout_k1-10/bot 4_Roundabout_slow_k9.csv']
+
+roundabout = [rfft, rkf]
+
+c3 = ['roundabout_2']
+
+c2 = ['merging_ramp','merging_ramp','merging_ramp']
+
+c1 = ['intersection_1','intersection_2','intersection_2','intersection_3','intersection_1']
+
+fks = []
+for c, sit in [[c1, inter], [c2, old_merge], [c2, merge], [c3, roundabout]]:
+    fk = []
+    for n in range(len(c)):
+        case_name = c[n]
+        ff = sit[2*n]
+        files = sit[2*n+1]
+
+        t1 = max(get_times(cases[case_name], files=ff))
+        t2 = max(get_times(cases[case_name], files=files))
+        fk.append(t2/t1)
+    fks.append(fk)
+
+print(fks)
+
+bar_plot('Fördröjningskvotar',fks, ['Korsning', 'Sammanvävning (tidigare arbete)', 'Sammanvävning', 'Cirkulationsplats'])
 

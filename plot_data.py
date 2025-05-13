@@ -150,7 +150,7 @@ def median_filer(data, data_range):
 def moving_average(data, data_range):
     new_data = []
     for n in range(len(data)):
-        sample = data[max(0, n-data_range):n] + data[n:min(len(data), n+data_range)]
+        sample = data[max(0, n-data_range+1):n+1] #+ data[n:min(len(data), n+data_range)]
         while None in sample:sample.remove(None)
         
         if len(sample) == 0: 
@@ -483,7 +483,7 @@ r = get_files_in_folder()
 # m = [filedialog.askopenfilename()]
 # r = [filedialog.askopenfilename()]
 
-eval_cri(m,r, True, False)    
+eval_cri(m,r, True, True)    
 
 
 
