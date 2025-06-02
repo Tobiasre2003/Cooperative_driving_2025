@@ -325,7 +325,7 @@ def get_plot_data(files, parameters:list[str]):
             
             # data = lim_change(data, 0.05) # hindrar snabba svängar     0.005
             # data = median_filer(data, 10)
-            data = moving_average(data, 5)
+            #data = moving_average(data, 5)
             #print(data)
             
             # data = np.array(data)
@@ -443,8 +443,7 @@ def eval_cri(m, r, cb = False, ia=False): # hitta nedsaktnings punkt
             else:
                 style = '-.'
                 label = 'Kamerabyte 2'
-            # plt.axvline(x=cs[color][0], color=color, linestyle=style, linewidth=1, label = label)
-            # plt.axvline(x=cs[color][-1], color=color, linestyle=style, linewidth=1)
+
             plt.axvspan(cs[color][0], cs[color][-1], color=color, alpha=0.15, label=label)
 
     
@@ -551,22 +550,203 @@ def eval_cri_2(folders):
     
     
 
-m1 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 4_merging_main_k1-10/bot 4_main_k9.csv']
-r1 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_1/bot 5_merging_ramp_k1-10/bot 5_merging_ramp_k9.csv']
+
+    
+def eval_cri_3(folders, labels, cb=False): 
+    color_cycle = ['r','g','b','y']
+    
+    for i in range(len(folders)-1,-1,-1):
+
+        first = True
+        m,r = folders[i]
+    
+        plot_data_dict = {}
+        entry_range = {}
+        camera_switch = {}
+        last_time = 0
+
+        for n in range(len(m)):
+            pd, er, cs = get_plot_data([m[n], r[n]], ['cri'])
+            entry_range.update(er)
+            plot_data_dict.update(pd)
+            camera_switch.update(cs)
+
+ 
+        for file_name in plot_data_dict:
+                    
+            for name in plot_data_dict[file_name]:
+                data = plot_data_dict[file_name][name][2]
+                time = plot_data_dict[file_name][name][1]
+                
+                if first:
+                    plt.plot(time, data, color_cycle[i], label = labels[i])
+                    first = False
+                else:
+                    plt.plot(time, data, color_cycle[i])
+                    
+                data.reverse()
+                time.reverse()
+                for j in range(len(data)):
+                    v = data[j]
+                    if not v == None:
+                        last_time = time[j] if time[j] > last_time else last_time
+                        break
+      
+                    
+        if cb:         
+            cs = {} 
+                
+            for file_name in camera_switch:
+                
+                csl = camera_switch[file_name]
+                
+                color = 'red' if i == 0 else 'yellow'
+                if 'bot 5' in file_name: color = 'blue' if i == 0 else 'green'
+                new_csl = []
+                
+                for t in csl:
+                    if t < last_time:
+                        new_csl.append(t)
+                
+                if len(new_csl) == 0: continue
+                
+                try:
+                    cs[color][0] = min(cs[color][0], new_csl[0])
+                    cs[color][1] = max(cs[color][1], new_csl[-1])
+                except:
+                    cs[color] = [new_csl[0], new_csl[-1]]
+                
+            for color in cs:
+                if color == 'red':
+                    label = 'Kamerabyte 1'
+                elif color == 'blue':
+                    label = 'Kamerabyte 2'
+                elif color == 'yellow':
+                    label = 'Kamerabyte 1 (tidigare arbete)'
+                elif color == 'green':
+                    label = 'Kamerabyte 2 (tidigare arbete)'
+
+                
+                plt.axvspan(cs[color][0], cs[color][-1], color=color, alpha=0.1, label=label, linewidth=3)
+                
+                
+    handles, labels = plt.gca().get_legend_handles_labels() 
+    order = [3,4,5,0,1,2] 
+    plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
+    plt.show()
+    
+def data_average(data, time):
+    new_data = []
+    new_time = []
+    n_max = 0
+    for i in range(len(data)):
+        array = data[i]
+        if len(array)>n_max:
+            n_max = len(array)
+            new_time = time[i]
+            
+    for n in range(n_max):
+        values = []
+        for array in data:
+            val = array[n] if n < len(array) else None
+            val = val if not val == None else np.inf
+            values.append(val)
+        
+        new_data.append(np.mean(np.array(values)))
+    
+    return new_data, new_time
+        
+def data_max(data, time):
+    new_data = []
+    new_time = []
+    n_max = 0
+    for i in range(len(data)):
+        array = data[i]
+        if len(array)>n_max:
+            n_max = len(array)
+            new_time = time[i]
+            
+    for n in range(n_max):
+        values = []
+        for array in data:
+            len_diff = n_max - len(array)
+            val = array[n-len_diff] if n-len_diff >= 0 else None
+            val = val if not val == None else np.inf
+            values.append(val)
+        new_data.append(max(values))
+        
+    return new_data, new_time
+       
+        
+def remove_last(data):
+    for n in range(len(data)-1,-1,-1):
+        try:
+            float(data[n])
+            return data[:n+1]
+        except: pass    
+        
+
+from matplotlib.colors import to_hex 
 
 
-m2 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 4_merging_main_2_k1-k10/bot 4_merging_main_2_k9.csv']
-r2 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_2/bot 5_merging_ramp_2_k1-10/bot 5_merging_ramp_2_k9.csv']
+base_colormaps = {
+    0: plt.colormaps.get_cmap('Blues'),
+    1: plt.colormaps.get_cmap('Greens'),
+    2: plt.colormaps.get_cmap('Reds'),
+} 
 
+def eval_cri_4(folders, labels): 
+    num_curves_per_group = 2
+    
+    for i in range(len(folders)):
+        
+        cmap = base_colormaps[(i%3)]
 
-m3 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 4_merging_main_3_k1-k10/bot 4_merging_main_3_k9.csv']
-r3 = ['C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k1.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k10.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k2.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k3.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k4.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k5.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k6.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k7.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k8.csv', 'C:/Users/tobia/Desktop/Chalmers/Kandidatarbete/Cooperative_driving_2025/Evaluerings data/cooperative_control/merging_test_3/bot 5_merging_ramp_3_k1-10/bot 5_merging_ramp_3_k9.csv']
+        first = True
+        m,r = folders[i]
+    
+        plot_data_dict = {}
+        entry_range = {}
+        camera_switch = {}
 
+        for n in range(len(m)):
+            pd, er, cs = get_plot_data([m[n], r[n]], ['cri'])
+            entry_range.update(er)
+            plot_data_dict.update(pd)
+            camera_switch.update(cs)
 
-folders = [[m1,r1],[m2,r2],[m3,r3]]
-# folders = [[get_files_in_folder(m),get_files_in_folder(r)] for [m,r] in folders]
+        data_list = []
+        time_list = []
+        
+        for file_name in plot_data_dict:
+            for name in plot_data_dict[file_name]:
+                data = plot_data_dict[file_name][name][2]
+                time = plot_data_dict[file_name][name][1]
+            
+                data = remove_last(data)
+                time = time[:len(data)]
+                
+                data_list.append(data)
+                time_list.append(time)
+            
+        shade = (int(np.floor(i/3)) + 1) / (num_curves_per_group + 1)
+        color = to_hex(cmap(shade))
+        data, time = data_average(data_list, time_list)
 
-eval_cri_2(folders)
+        plt.plot(time, data, color=color, label=labels[i])
+
+    plt.xlim(right=10)
+    plt.ylim((0, 1.35))     
+    
+    handles, labels = plt.gca().get_legend_handles_labels() 
+    order = [5,4,3,2,1,0]
+    plt.title('Cut-in Risk Indicator')
+    plt.ylabel('CRI')
+    plt.xlabel('Tid [s]')
+    plt.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right')
+    plt.tight_layout()
+    plt.show()
+    
 
 
 
