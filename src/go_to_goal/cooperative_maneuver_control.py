@@ -17,42 +17,55 @@ import time
 import pickle
 import csv
 
-rospy.init_node('cooperative_maneuver_control', anonymous=True)
+rospy.init_node('cooperative_maneuver_control', anonymous=True) # Initiating ROS node
 rospy.loginfo("Starting cooperative_maneuver_control node")
 
 time_step = 1
 last_time_step = rospy.get_time()
  
 def init_log():
+    """The function creates a txt file for the log.
+
+    Returns:
+        str : file path to document
+    """
+    
     directory = os.path.dirname(os.path.abspath(__file__))
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"log_{timestamp}.txt"
     filepath = os.path.join(directory, filename)
     i = 1
+    
     while os.path.exists(filepath):
         filename = f"log_{timestamp}_{i}.txt"
         filepath = os.path.join(directory, filename)
         i += 1
     with open(filepath, "w") as file:
         file.write("Data\n")
-    return filepath
         
-def log(filepath, name:str, data):
+    return filepath
+
+   
+def log(filepath:str, name:str, data):
+    """Loging data to document.
+
+    Args:
+        filepath (str): file path to document
+        name (str): a label for the data
+        data (str): the data that is loged
+    """
+    
     time = datetime.datetime.now().strftime("%M-%S-%f")
     pos = bots[my_id].point
     data = str(data)
+    
     with open(filepath, "a") as file:
         file.write(f"Time: {time}, Pos: {pos}, {name}: {data}\n")
 
-def next_time_step() -> bool:
-    global last_time_step
-    if rospy.get_time() > last_time_step + time_step:
-        last_time_step = float(rospy.get_time())
-        return True
-    return False
 
 
 class ThreadSafeDict:
+    """A concurrent safe dictionary, can be used as a normal dictionary"""
     def __init__(self):
         self.lock = threading.Lock()
         self.data = {}
@@ -84,7 +97,10 @@ class ThreadSafeDict:
             return list(self.data.values())
 
 
+
+
 class Point:
+    """A point"""
     def __init__(self,x:float, y:float):
         self.x = x
         self.y = y
@@ -108,10 +124,26 @@ class Point:
         except: return Point(self.x*point, self.y*point)
     
     def distance_between_points(self, point) -> float:
+        """Calculates the distance between this point and the input point.
+
+        Args:
+            point (Point): the input point
+
+        Returns:
+            float: the distance between the points
+        """ 
         if point == None: return None
         return math.sqrt((self.x-point.x)**2 + (self.y-point.y)**2)
     
     def distance_between_points_in_list(self, list:list) -> float:
+        """Calculates the distance between this point and along the input points in the list.
+
+        Args:
+            list (list): a list of points
+
+        Returns:
+            float: the distance along the points
+        """
         try:
             prev_point = self
             tot_dist = 0
@@ -122,7 +154,11 @@ class Point:
         except: 
             return None
 
+
+
+
 class Vector:
+    """A vector"""
     def __init__(self,x:float, y:float):
         self.x = x
         self.y = y
@@ -143,53 +179,134 @@ class Vector:
         except: return Vector(self.x*vector, self.y*vector)
 
     def abs(self) -> float:
+        """Calculates the length of the vector.
+
+        Returns:
+            float: the length
+        """
         return math.sqrt(self.x**2 + self.y**2)
 
     def dot_product(self, vector) -> float:
+        """Calculates the dot product of this vector and the input vector.
+
+        Args:
+            vector (Vector): the input vector
+
+        Returns:
+            float: the dot product
+        """
         return self.x * vector.x + self.y * vector.y
 
     def scalar_projection(self, vector) -> float:
+        """Calculates the scalar projection of this vector and the input vector.
+
+        Args:
+            vector (Vector): the input vector
+
+        Returns:
+            float: the scalar projection
+        """
         length = self.abs() 
         if length == 0: length = 1
         return self.dot_product(vector) / length
     
     def get_orthogonal_vector(self):
+        """Calculates the orthogonal vector to this vector.
+
+        Returns:
+            Vector: the orthogonal vector
+        """
         return Vector(self.y, -self.x)
     
     def get_unit_vector(self):
+        """Calculates the unit vector of this vector.
+
+        Returns:
+            Vector: the unit vector
+        """
         length = self.abs() 
         if length == 0: length = 1
         return self*(1/length)
     
-    def to_point(self) -> Point: 
+    def to_point(self) -> Point:
+        """Converting this vector to a point.
+
+        Returns:
+            Point: the converted point
+        """
         return Point(self.x, self.y)
         
     def vector_projection(self, vector):
+        """Calculates the vector projection of this vector and the input vector.
+
+        Args:
+            vector (Vector): the input vector
+
+        Returns:
+            Vector: the vector projection 
+        """
         return self*self.scalar_projection(vector)
+
 
     
 class Object:
+    """A representation of an object in the lab"""
     def __init__(self, pos:Point, theta:float, borders:list = [], velocity_vector:Vector = Vector(0,0)):
+        """The object have a local coordinate system. Its origin is its position. 
+           The z-axis is pointed to the ceiling of the lab and the x-axis is pointed at the direction where theta is 0.
+
+        Args:
+            pos (Point): the position of the object in the global coordinate system (GulliView)
+            theta (float): the rotation of the object in the global coordinate system (GulliView)
+            borders (list, optional): list of points in the local coordinate system, making up the borders of the object. Defaults to [].
+            velocity_vector (Vector, optional): a vector describing the moving direction of the object in the local coordinate system. Defaults to Vector(0,0).
+        """
         self.pos = pos
         self.direction = theta
         self.borders = borders
         self.velocity_vector = velocity_vector.get_unit_vector()
         
     def update(self, pos:Point, theta:float):
+        """Updating class variables. 
+
+        Args:
+            pos (Point): the position of the object
+            theta (float): the rotation of the object
+        """
         self.pos = pos
         self.direction = theta
         
     def rotation_matrix(self, sign:int = 1) -> tuple:
+        """A rotation matrix for converting a point from the old GulliView coordinate system and a normal coordinate system.
+
+        Args:
+            sign (int, optional): changing the sign of the rotation. Defaults to 1.
+
+        Returns:
+            tuple: the rotation matrix
+        """
         return (Vector(math.cos(sign*self.direction), math.sin(sign*self.direction)), Vector(-math.sin(sign*self.direction), math.cos(sign*self.direction)))
     
-    
-    def get_global_velocity_vector(self):
+    def get_global_velocity_vector(self) -> Vector:
+        """Converting this objects velocity vector to the global coordinate system (GulliView).
+
+        Returns:
+            Vector: the global velocity vector
+        """
         rotation_matrix = self.rotation_matrix(-1)
         x = rotation_matrix[0].dot_product(self.velocity_vector)
         y = -rotation_matrix[1].dot_product(self.velocity_vector)
         return Vector(x, y).get_unit_vector()
     
     def point_from_local_to_global(self, local_point:Point) -> Point:
+        """Converting point form the local coordinate system of this objects, to the global coordinate system (GulliView).
+
+        Args:
+            local_point (Point): a point in the local coordinate system of this objects
+
+        Returns:
+            Point: the global point
+        """
         if local_point == None: return None
         rotation_matrix = self.rotation_matrix(-1)
         x = rotation_matrix[0].dot_product(local_point) + self.pos.x
@@ -197,24 +314,52 @@ class Object:
         return Point(x, y)
     
     def from_local_to_global(self) -> list:
+        """Converting the objects border points to global points.
+
+        Returns:
+            list: list of global border points of the object
+        """
         borders = []
         for local_point in self.borders:
             borders.append(self.point_from_local_to_global(local_point))
         return borders
     
     def point_from_globl_to_local(self, global_point:Point) -> Point:
+        """Converting a global point to a point in the local coordinate system.
+
+        Args:
+            global_point (Point): the global point
+
+        Returns:
+            Point: the local point
+        """
         rotation_matrix = self.rotation_matrix()
         x = rotation_matrix[0].dot_product(global_point) - rotation_matrix[0].dot_product(self.pos)
         y = rotation_matrix[1].dot_product(global_point) - rotation_matrix[1].dot_product(self.pos)
         return Point(x, y)
     
     def from_globl_to_local(self, global_borders:list) -> list:
+        """Converting a list of global points to a list of points in the local coordinate system.
+
+        Args:
+            global_borders (list): the list of global points
+
+        Returns:
+            list: the list of local points
+        """
         borders = []
         for global_point in global_borders:
             borders.append(self.point_from_globl_to_local(global_point))
         return borders
     
-    def get_outer_points(self):
+    def get_outer_points(self) -> Point:
+        """Finding the points furthest away from each other in a direction perpendicular to the velocity vector.
+
+        Returns:
+            Point: the point in one direction
+            Point: the point in the other direction
+            Point: the point on the objects border that the velocity vector crosses
+        """
         side_min_point = self.pos
         side_max_point = self.pos
         front_max_point = self.pos
@@ -238,7 +383,15 @@ class Object:
         
         return side_min_point, side_max_point, self.velocity_vector.vector_projection(front_max_point).to_point()
     
-    def collision_course(self, obj):
+    def collision_course(self, obj) -> float:
+        """Calculates the distance to the point this object will collide with the input object.
+
+        Args:
+            obj (Object): the input object
+
+        Returns:
+            float: the distance to collision
+        """
         p1, p2, front_point = self.get_outer_points()
         sign = 0
         closest_distance = math.inf
@@ -269,7 +422,18 @@ class Object:
         return self.point_from_local_to_global(front_point).distance_between_points(self.point_from_local_to_global(self_collision_point))
 
     
-    def crossing_vector(self, self_point:Point, obj_point:Point, self_vel:Vector, obj_vel:Vector):
+    def crossing_vector(self, self_point:Point, obj_point:Point, self_vel:Vector, obj_vel:Vector) -> Point:
+        """Calculating the point where two vectors from two points, cross each other.
+
+        Args:
+            self_point (Point): the first point
+            obj_point (Point): the second point
+            self_vel (Vector): the first vecor
+            obj_vel (Vector): the second vector
+
+        Returns:
+            Point: the crossing point
+        """
         try:
             if not obj_vel.x == 0:
                 self_dist = (obj_point.y-self_point.y+obj_vel.y*((self_point.x-obj_point.x)/obj_vel.x))/(self_vel.y-(obj_vel.y*self_vel.x)/obj_vel.x)
@@ -280,7 +444,16 @@ class Object:
         except ZeroDivisionError:
             return None
      
-    def moving_collision_course(self, obj):
+    def moving_collision_course(self, obj) -> float:
+        """Calculates the distance to the point where the velocity vectors, from the side points of this and the input object, will cross each other.
+           
+        Args:
+            obj (Object): the input object
+
+        Returns:
+            float: the distance to the first crossing point
+            float: the distance to the second crossing point
+        """
         self_p1, self_p2, front_point = self.get_outer_points()
         obj_p1, obj_p2, _ = obj.get_outer_points()
         
@@ -307,7 +480,15 @@ class Object:
         
         return dist_1, dist_2
         
-    def global_point_in_object(self, global_point:Point):
+    def global_point_in_object(self, global_point:Point) -> bool:
+        """Checking if the input point is within this object. 
+
+        Args:
+            global_point (Point): the input point
+
+        Returns:
+            bool: the result (True if it is in the object, False otherwise)
+        """
         local_point = self.point_from_globl_to_local(global_point)
         
         prev_point = self.borders[-1]
@@ -324,6 +505,7 @@ class Object:
 
     
 class Bot:
+    """A representation of a WiFiBot"""
     def __init__(self, id:int):
         self.id = id
         self.left_speed = 0
@@ -346,11 +528,22 @@ class Bot:
         except AttributeError: return None
     
     def update_pos(self, point:Point, theta:float):
+        """Updating class variables.
+
+        Args:
+            point (Point): position of the bot
+            theta (float): rotation of the bot
+        """
         self.point = point
         self.theta = theta
         self.obj.update(self.point, self.theta)
         
     def add_speed(self, speed:float):
+        """Updating speed variable.
+
+        Args:
+            speed (float): the speed [m/s]
+        """
         time = rospy.get_time()
         if not self.last_speed_update is None and not self.last_speed_update is None and time-self.last_speed_update > 0:
             self.acceleration = (speed-self.absolute_speed)/(time-self.last_speed_update) # [m/s^2]
@@ -358,10 +551,21 @@ class Bot:
         self.absolute_speed = speed
     
     def loss_of_signal(self):
+        """Checking if this bot is still communicating.
+
+        Returns:
+            bool: True if this bot is still communicating, False otherwise
+            float: the amount of time since last message
+        """
         time_diff = rospy.get_time() - self.last_update
         return time_diff > time_step + 1, time_diff
     
     def update_collision_point(self, bot):
+        """Updating the estimated distance to collision with input bot.
+
+        Args:
+            bot (Bot): the input bot
+        """
         dist = self.obj.collision_course(bot.obj)
         if dist == None: dist = math.inf
 
@@ -374,8 +578,20 @@ class Bot:
 
    
 class Intersection:
+    """The exclusive zone that are used to control a traffic situation"""
     class Intersection_section:
+        """A subsection of the exclusive zone"""
         def __init__(self, outer, center_point:Point, dx:float, dy:float, n:int, theta:float):
+            """Setting up the section.
+
+            Args:
+                outer (Intersection): the intersection this subsection is within
+                center_point (Point): the center point of the area
+                dx (float): the width of the area
+                dy (float): the height of the area
+                n (int): the name of the area
+                theta (float): the rotation of the area
+            """
             self.n = n
             self.dx = dx
             self.dy = dy
@@ -391,6 +607,18 @@ class Intersection:
             return f"part {self.n} is claimed by {self.claimed} \n"
 
         def get_path_dist(self, bot:Bot, path:list):
+            """Calculates the entry and exit point of this section for the input bot and its path. 
+               The distance between the points in the path to these points are also calculated.
+
+            Args:
+                bot (Bot): the input bot
+                path (list): the path for the input bot
+
+            Returns:
+                (float, list, Point): the distance to the entry point, the distances between every point in the path until the entry point, the entry point
+                (float, list, Point): the distance to the exit point, the distances between exit point in the path until the exit point, the exit point
+                bool: True if the path has reached out side of the whole Intersection (not just the Intersection_Section), otherwise False
+            """
             entry_outside = None
             entry_inside = None
             entry_tot_dist_list = []
@@ -425,20 +653,37 @@ class Intersection:
             
             if entry_outside == None or entry_inside == None: return None, None, done
             
-            entry_point = self.crossing_boarder(entry_outside, entry_inside)
-            exit_point = self.crossing_boarder(exit_outside, exit_inside)
+            entry_point = self.crossing_border(entry_outside, entry_inside)
+            exit_point = self.crossing_border(exit_outside, exit_inside)
 
             entry_tot_dist_list.append(entry_outside.distance_between_points(entry_point))
             exit_tot_dist_list.append(exit_inside.distance_between_points(exit_point))
 
             return (bot_start_dist + sum(entry_tot_dist_list), entry_tot_dist_list, entry_point), (bot_start_dist + sum(exit_tot_dist_list), exit_tot_dist_list, exit_point), done
         
-        def on_boarder(self, point:Point):
+        def on_border(self, point:Point):
+            """Checks if the input point is on the border of this section
+
+            Args:
+                point (Point): the input point
+
+            Returns:
+                bool: True if the point is on the border, otherwise False
+            """
             x_con = self.center_point.x-self.dx <= point.x <= self.center_point.x+self.dx
             y_con = self.center_point.y-self.dy <= point.y <= self.center_point.y+self.dy
             return x_con and y_con
         
-        def crossing_boarder(self, outside:Point, inside:Point):
+        def crossing_border(self, outside:Point, inside:Point):
+            """Calculating the crossing point of the borders of this section, from a point inside and outside
+
+            Args:
+                outside (Point): the input point, outside the section
+                inside (Point): the input point, inside the section
+
+            Returns:
+                Point: the crossing point
+            """
             crossing_vector1 = Vector(inside.x-outside.x,inside.y-outside.y)
 
             borders = self.obj.from_local_to_global()
@@ -451,7 +696,7 @@ class Intersection:
                 vector = Vector(point.x-prev_point.x, point.y-prev_point.y)
                 p = self.obj.crossing_vector(outside, prev_point, crossing_vector1, vector)
      
-                if not p == None and self.on_boarder(p):
+                if not p == None and self.on_border(p):
                     dist = p.distance_between_points(outside)
                     if dist<distance:
                         distance = dist
@@ -460,6 +705,14 @@ class Intersection:
             return crossing_point
             
         def claim(self, bot:Bot):
+            """Trying to claim this section for the input bot
+
+            Args:
+                bot (Bot): the input bot
+
+            Returns:
+                bool: True if the claim was successful, False if not
+            """
             if self.claimed == None: 
                 log(file, f"{self.outer.name} part {self.n}", f"claimed by {bot.id}")
                 self.claimed = bot.id
@@ -467,6 +720,14 @@ class Intersection:
             return False     
         
         def release(self, bot:Bot):
+            """Trying to unclaim this section for the input bot
+
+            Args:
+                bot (Bot): the input bot
+
+            Returns:
+                bool: True if the claim was successfully removed, False if not
+            """
             if self.claimed == bot.id: 
                 log(file, f"{self.outer.name} part {self.n}", f"released by {bot.id}")
                 self.claimed = None
@@ -474,6 +735,7 @@ class Intersection:
             return False      
 
     class Bot_param:
+        """Keeps the information of a bot, regarding this Intersection"""
         def __init__(self, outer, bot:Bot):
             self.outer = outer
             self.bot = bot
@@ -482,9 +744,16 @@ class Intersection:
             log(file, f"{self.outer.name}", f"new bot params with id {bot.id}")
         
         def set_priority(self, priority:int):
+            """Changing the priority for this bot in this intersection
+
+            Args:
+                priority (int): the new priority
+            """
             self.my_priority = priority
         
         def init_my_bot(self):
+            """Initiating parameters for a new bot for this intersection"""
+            
             log(file, f"{self.outer.name}", "init inter params")
             path = self.bot.path.copy()
             path_len = len(path)
@@ -532,6 +801,16 @@ class Intersection:
         
         
         def dist_to_border(self, dist_list:list, last_point:Point, last_con:bool):
+            """Calculating the distance to a intersection border
+
+            Args:
+                dist_list (list): a list of distances between points in a bots path
+                last_point (Point): the entry or exit point of the intersection
+                last_con (bool): True if the bot has passed the border, False otherwise
+
+            Returns:
+                float: the distance
+            """
             try:
                 index = int(self.start_path_len-len(self.bot.path))
                 if index > len(dist_list) : 
@@ -547,10 +826,20 @@ class Intersection:
                 return None
         
         def dist_to_entry(self):
+            """Calculating the distance to the entry point
+
+            Returns:
+                float: the distance
+            """
             last_con = self.outer.bot_in_intersection(self.bot)
             return self.dist_to_border(self.intersection_entry_dist_list, self.intersection_entry_point, last_con)
         
         def dist_to_exit(self):
+            """Calculating the distance to the exit point of the intersection
+
+            Returns:
+                float: the distance
+            """
             dist_to_int = self.bot.point.distance_between_points(self.intersection_entry_point)
             dist_to_exit = self.bot.point.distance_between_points(self.intersection_exit_point)
             dist_in_int = self.intersection_entry_point.distance_between_points(self.intersection_exit_point)
@@ -558,6 +847,11 @@ class Intersection:
             return self.dist_to_border(self.intersection_exit_dist_list, self.intersection_exit_point, last_con)
         
         def dist_to_parts_exit(self):
+            """Calculating the distance to the exit point of a section in the intersection
+
+            Returns:
+                float: the distance
+            """
             dist_dict = {}
             for n in self.section_exit_data.keys():
                 dist_to_int = self.bot.point.distance_between_points(self.section_entry_data[n][0])
@@ -569,16 +863,23 @@ class Intersection:
         
          
         def mean_time_to_dist(self, bot:Bot, dist:float):
+            """Calculating the time it will take for the input bot to reach the input distance
+
+            Args:
+                bot (Bot): the input bot
+                dist (float): the input distance
+
+            Returns:
+                float: the time
+            """
             if dist == None: return math.inf
             dist = dist/1000
             speed = max(bot.absolute_speed, 0) 
-            # acc = bot.acceleration
-            # if not acc==0:   
-            #     mti = (-speed + math.sqrt(speed**2 + 2*acc*dist))/acc
+
             if not speed == 0:
                 mti = dist/speed
             else:
-                mti = math.inf #dist/0.01
+                mti = math.inf 
             return mti
         
         def __getattribute__(self, name):
@@ -586,11 +887,25 @@ class Intersection:
             except AttributeError: return None
             
         def update_times(self):
+            """Updating time variables"""
             self.mti = self.mean_time_to_dist(self.bot, self.dist_to_entry())
-            self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit() + 0.20) # snabb fix
+            self.time_to_exit = self.mean_time_to_dist(self.bot, self.dist_to_exit() + 0.20)
             
     
     def __init__(self, name:str, p1:Point, p2:Point, theta:float = 0, parts_in_x:int = 2, parts_in_y:int = 2, group_name:str = None, bot_range:float = None, entry_range:float = None):
+        """Initiating the intersection
+
+        Args:
+            name (str): the name of the intersection (needs to be unique)
+            p1 (Point): one corner point of the intersection
+            p2 (Point): the other corner point of the intersection
+            theta (float, optional): the rotation of the intersection. Defaults to 0.
+            parts_in_x (int, optional): number of intersection_sections in the x-direction. Defaults to 2.
+            parts_in_y (int, optional): number of intersection_sections in the y-direction. Defaults to 2.
+            group_name (str, optional): the name of the group this intersection belongs to (only used for roundabout). Defaults to None.
+            bot_range (float, optional): the bot detection range for this intersection. Defaults to None.
+            entry_range (float, optional): the entry range for this intersection. Defaults to None.
+        """
         self.name = name
         self.group_name = group_name
         self.range = bot_range if not bot_range == None else max(abs(p1.x-p2.x),abs(p1.y-p2.y))*2
@@ -618,6 +933,7 @@ class Intersection:
         self.los_data = (None, None)
         
     def update(self):
+        """Updating all calculations for this intersection"""
         if self.new_path:
             try:
                 with self.bot_params[my_id].lock:
@@ -637,14 +953,25 @@ class Intersection:
             self.intersection_ctrl()
     
     def set_new_path(self):
+        """notifies the intersection that a new path has been planned and that calculations may need to be re-done"""
         self.new_path = True
     
     def in_range(self, bot:Bot, max_range:float = None):
+        """Checking if the input bot is within a range of the intersection
+
+        Args:
+            bot (Bot): the input bot
+            max_range (float, optional): an input range. Defaults to None.
+
+        Returns:
+            bool: True if the bot is within the range, False if not
+        """
         if max_range == None: max_range = self.range
         center_point = (self.p2 - self.p1)*0.5 + self.p1
         return center_point.distance_between_points(bot.point) <= max_range
       
     def bots_in_range(self):
+        """Searches for all bots within detection range"""
         for bot in bots.values():
             if self.in_range(bot) and not bot.id in self.bot_params:
                 self.bot_params[bot.id] = self.Bot_param(self, bot)
@@ -652,10 +979,19 @@ class Intersection:
                     self.bot_params[bot.id].init_my_bot()
                  
     def remove_bot(self, bot:Bot):
+        """Removes bot from this intersection"""
         log(file, f"{self.name}", f"removed bot with id {bot.id}")
         del self.bot_params[bot.id]
 
     def claim_parts(self, bot:Bot):
+        """Tries to claim all sections the input bot wants
+
+        Args:
+            bot (Bot): the input bot
+
+        Returns:
+            bool: True if the claim was successful, False if not
+        """
         if not bot.id in self.bot_params: return False
         with self.bot_params[bot.id].lock:
             if not bot.id in self.bot_params: return False
@@ -670,17 +1006,35 @@ class Intersection:
             return True
     
     def release_parts(self, bot:Bot):
+        """Removes all claims the input bot has
+
+        Args:
+            bot (Bot): the input bot
+        """
         if not bot.id in self.bot_params: return
         parts = self.bot_params[bot.id].intersection_sections
         for n in parts: self.parts[n].release(bot)
 
     def bot_in_intersection(self, bot:Bot):
+        """Checking if the input bot is within the intersection
+
+        Args:
+            bot (Bot): the input bot
+
+        Returns:
+            bool: True if the bot is within the intersection, False in not
+        """
         in_intersection = False
         for part in self.parts:
             in_intersection = in_intersection or part.obj.global_point_in_object(bot.point)
         return in_intersection
         
     def heart_beat(self, status:str, **kwargs):
+        """Sending messages to other bots in range of this intersection
+
+        Args:
+            status (str): the type of message
+        """
         receiver_id = kwargs.get("id", None)
         section = kwargs.get("section", "all")
         
@@ -709,11 +1063,21 @@ class Intersection:
             udp_client.send(ip[receiver_id], 2020, msg)
       
     def conecondition_one(self):
+        """Checking if this bot will cross this intersection
+
+        Returns:
+            bool: True if it will, False if it won't
+        """
         if not my_id in self.bot_params: return False
         intsec = self.bot_params[my_id].intersection_sections
         return type(intsec) is list and len(intsec)>0
 
     def heart_beat_con(self) -> bool:
+        """Checking if all bots within range of this intersection, is still communicating
+
+        Returns:
+            bool: True if all bots is still communicating, False if not
+        """
         los = False
         max_time_diff = 0
         max_time_bot_id = None
@@ -730,6 +1094,16 @@ class Intersection:
         return not los 
           
     def sort_priority_bot_list(self, priority_list:list):
+        """Sorting the priority list, so that bots in the intersection keeps the higest priority, 
+           and gives bots with a highier priority value (in Bot_param) priority,  
+           and so that a small diffrence in mti gives priority to the bot with the lowest id number  
+
+        Args:
+            priority_list (list): the input priority list
+
+        Returns:
+            list: the new priority list
+        """
         mti_ref = None
         bot_list = []
         time_step = 1
@@ -750,6 +1124,11 @@ class Intersection:
         return new_list
             
     def get_priority_bot(self):
+        """Calculates the priority for all bots, based on their mti (mean time to intersection)
+
+        Returns:
+            list: a list with the bots sorted by their priority
+        """
         priority_bot_list = []
         for param in self.bot_params.values():
             bot = param.bot
@@ -761,6 +1140,11 @@ class Intersection:
         return self.sort_priority_bot_list(priority_bot_list)
                     
     def bot_communication(self, msg:list):
+        """Receives and saves messages from other robots
+
+        Args:
+            msg (list): the message
+        """
         id = msg[0]
         msg_type = msg[1]
         time = rospy.get_time()
@@ -795,6 +1179,11 @@ class Intersection:
             bots[id].last_update = time
                     
     def check_claims(self, priority_list):
+        """Checking all claims by comparing it to the priority list and releases all incorrect claims
+
+        Args:
+            priority_list (list): the priority list
+        """
         claims = [part.claimed for part in self.parts]
         not_done = True
         for bot in priority_list:
@@ -819,30 +1208,31 @@ class Intersection:
                             continue
 
     def intersection_ctrl(self):
+        """Controls this robot's maneuvers through this intersection"""
         my_bot = bots[my_id]
-        if self.in_range(my_bot, self.entry_range) and self.conecondition_one(): 
+        if self.in_range(my_bot, self.entry_range) and self.conecondition_one(): # Checking if the bot is within range and will cross the intersection
             log(file, f"{self.name}", "bot in entry range")
-            if self.heart_beat_con():
+            if self.heart_beat_con(): # Checking communication
                 
-                self.heart_beat("ENTER")
+                self.heart_beat("ENTER") # Sending ENTER message 
                 
-                if self.heart_beat_con():
-                    priority_list = self.get_priority_bot()
+                if self.heart_beat_con(): # Checking communication
+                    priority_list = self.get_priority_bot() # Calculating priority
                     log(file, f"{self.name}", f"priority list: {[{'id': bot.id, 'mti': self.bot_params[bot.id].mti} for bot in priority_list]}")
                     
                     self.check_claims(priority_list)
                     
-                    for bot_index in range(len(priority_list)):
+                    for bot_index in range(len(priority_list)): # Performing claims
                         bot = priority_list[bot_index]
                         if self.claim_parts(bot):
-                            if bot.id == my_id:
+                            if bot.id == my_id: # This bot got its claims
                                 log(file, f"{self.name}", "Entering")
                                 topic_handler.setSpeed(SPEED)
                                 exit_dists = self.bot_params[my_id].dist_to_parts_exit()
                                 exit_parts = [(n in exit_dists.keys() and exit_dists[n]==0, n) for n in self.bot_params[my_id].intersection_sections]
 
                                 for exit_part in exit_parts:
-                                    if exit_part[0]:
+                                    if exit_part[0]: # This bot left a section
                                         log(file, f"{self.name}", f"exit part {exit_part[1]}")
                                         with self.bot_params[my_id].lock:
                                             n = exit_part[1]
@@ -859,7 +1249,7 @@ class Intersection:
                                 return
                         else:
                             
-                            if bot.id == my_id:
+                            if bot.id == my_id: # This bot didn't get its claims
                                 log(file, f"{self.name}", "Slowing down")
                                 params = self.bot_params[priority_list[bot_index-1].id]
                                 if params == None: return
@@ -868,7 +1258,7 @@ class Intersection:
                                 if time_to_clear == None: return
                                 time_to_clear += 0.5
                                 
-                                dist = self.bot_params[my_id].dist_to_entry()/1000 - 0.16 ## snabb fix
+                                dist = self.bot_params[my_id].dist_to_entry()/1000 - 0.16 
                                 new_vel = min(max(dist / time_to_clear, 0), SPEED)
                                 if new_vel <= 0.015: new_vel = 0
                                 
@@ -879,11 +1269,14 @@ class Intersection:
             log(file, f"{self.name}", f"stoping, loss of signal with bot {self.los_data[1]} for {self.los_data[0]} seconds")
 
 
+
 class Cruise_control:
+    """Adjusts the bots max speed to avoid collisions"""
     def __init__(self, dist_lim:float = 1):
         self.dist_lim = dist_lim
     
     def update(self):
+        """Performing calculations and updates the speed limit"""
         self.update_collision_risk()
         dist = self.dist_to_collision()
         dist_diff = dist - self.dist_lim
@@ -891,11 +1284,13 @@ class Cruise_control:
         self.set_speed_lim(new_lim)
 
     def update_collision_risk(self):
+        """Updates the calculated values of the distance to collison for this bot with all the other bots"""
         for bot in bots.values():
             if bot.id == my_id: continue
             bots[my_id].update_collision_point(bot)
            
     def dist_to_collision(self):
+        """Gets the calculated values of the distance to collison for this bot with all the other bots"""
         min_dist = math.inf
         for bot_id in bots[my_id].dist_to_bot_collision.keys():
             if min_dist > bots[my_id].dist_to_bot_collision[bot_id]:
@@ -903,11 +1298,23 @@ class Cruise_control:
         return min_dist
 
     def set_speed_lim(self, speed):
+        """Sets the speed limit"""
         topic_handler.set_speed_lim(speed)
         topic_handler.setSpeed(topic_handler.last_speed)
 
+
+
 class Roundabout:
-    def __init__(self, name, entry_section_points:list, bot_range:float = None, entry_range:float = None):
+    """Controlling the intersections of a roundabout"""
+    def __init__(self, name:str, entry_section_points:list, bot_range:float = None, entry_range:float = None):
+        """Initiating the roundabout
+
+        Args:
+            name (str): the name of the roundabout (the group name of the intersections)
+            entry_section_points (list): list of points for initiating the intersections
+            bot_range (float, optional): the detection range for the intersections. Defaults to None.
+            entry_range (float, optional): the entry range for the intersections. Defaults to None.
+        """
         self.name = name
         self.bot_range = bot_range
         self.entry_range = entry_range
@@ -917,27 +1324,34 @@ class Roundabout:
             self.entry_sections["entry_"+str(i)] = Intersection("entry_"+str(i), points[0], points[1], 0, 1, 1, self.name, self.bot_range, self.entry_range)  
         
     def update(self):
+        """Updates all intersections in the roundabout"""
         for intersection in self.entry_sections.values():
             intersection.update()
             
     def set_new_path(self):
+        """Notifies all intersections in the roundabout, that the bots has a new path"""
         for intersection in self.entry_sections.values():
             intersection.set_new_path()
             
     def bot_communication(self, msg):
+        """Updates the communication for all intersections in the roundabout"""
         self.entry_sections[msg[0]].bot_communication(msg[1:])
 
+
+
 class Ros_topic_handler:
+    """Handles all ROS topics for this code"""
     def __init__(self):
-        self.publisher = rospy.Publisher('gv_laptop', LaptopSpeed, queue_size=10)
+        self.publisher = rospy.Publisher('gv_laptop', LaptopSpeed, queue_size=10) # The topic this code publishes the speeds
         self.last_path_len = 0
         self.max_speed = SPEED
         self.last_speed = 0
-        rospy.Subscriber('gv_positions', GulliViewPosition, self.positions)
-        rospy.Subscriber('status', Status, self.status)
-        rospy.Subscriber('path', Polygon, self.path)
+        rospy.Subscriber('gv_positions', GulliViewPosition, self.positions) # The topic GulliView publishes the bots' positions
+        rospy.Subscriber('status', Status, self.status) # The topic this robot publishes its speed measurements
+        rospy.Subscriber('path', Polygon, self.path) # The topic this robot publishes its planned path
         
     def positions(self, position_msg:GulliViewPosition):
+        """Receives the positions from GulliView"""
         id = position_msg.tagId
         x = position_msg.x
         y = position_msg.y
@@ -950,11 +1364,13 @@ class Ros_topic_handler:
             bots[id].update_pos(self.p, theta)
 
     def status(self, status_msg:Status):
+        """Receives the bots speed"""
         bots[my_id].left_speed = status_msg.speed_front_left/2
         bots[my_id].right_speed = status_msg.speed_front_right/2
         bots[my_id].add_speed((bots[my_id].right_speed + bots[my_id].left_speed)/2) # Average speed forward, divided by two to match speed on cmdvel
 
-    def path(self, path_msg:Polygon):                
+    def path(self, path_msg:Polygon): 
+        """Receives the bots path"""               
         path = []
         for point in path_msg.points:
             path.append(Point(point.x,point.y))
@@ -970,6 +1386,7 @@ class Ros_topic_handler:
         self.last_path_len = len(path) 
         
     def setSpeed(self, speed:float):
+        """Sending the desired speed"""
         self.last_speed = speed
         header = Header()
         header.stamp = rospy.Time.now()
@@ -980,8 +1397,11 @@ class Ros_topic_handler:
         
     def set_speed_lim(self, lim):
         self.max_speed = max(min(lim, SPEED), 0)
-        
+    
+    
+         
 class UDP_client:
+    """Sending UDP packages on the Rostig network"""
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
@@ -995,7 +1415,9 @@ class UDP_client:
         log(file, "Status", "closing socket")
 
 
+
 class UDP_server(threading.Thread):
+    """Listening for UDP packages on the Rostig network"""
     def __init__(self, adress:str, port:int, timeout:float = 2):
         super().__init__()
         self.adress = adress
@@ -1027,11 +1449,21 @@ class UDP_server(threading.Thread):
         log(file, "Data from udp", data_list)
         cooperative_controller[data_list[0]].bot_communication(data_list[1:])  
 
+
+
 def csv_name():
+    """Creating a name for a csv file"""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     return f"data_{timestamp}.csv"
 
 def write_csv(filnamn, data, rubriker):
+    """Adding data to a csv file
+
+    Args:
+        filnamn (str): the csv file name
+        data (list): the input data
+        rubriker (list): list of column names for the data
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(script_dir, filnamn)  
     fil_exists = os.path.exists(file_path)
@@ -1043,6 +1475,12 @@ def write_csv(filnamn, data, rubriker):
         writer.writerow(data)
 
 def collect_data(name, intersection):
+    """Collects and save variable values to a csv file
+
+    Args:
+        name (str): the file name
+        intersection (str): the name of the intersection the information belongs to
+    """
     time = datetime.datetime.now().strftime("%M-%S-%f")
     my_bot = bots[my_id]
     speed = my_bot.absolute_speed
@@ -1082,11 +1520,13 @@ cooperative_controller = {
                             #"eight_intersection":Intersection("eight_intersection",Point(1982,6508),Point(2582,7108),0,1,1,None,2600,1400) #,
                             "merging 1":Intersection("merging 1", Point(654,4765), Point(2023,5237),0,1,1,None,4000,3000) #,
                             #"roundabout 1":Roundabout("roundabout 1", [[Point(3598,5012),Point(4526,4203)],[Point(3668,2460),Point(3171,3120)],[Point(2453,3742),Point(3148,4453)]], 3000, 2000)
-                         }
+                         
+                         } # All the intersections
 
 cruise_control = Cruise_control(0.5)
 
 def run():
+    """Updates all intersections"""
     for controller in cooperative_controller.values():
         controller.update()
         collect_data(data_file, controller)
@@ -1094,6 +1534,7 @@ def run():
                                 
 
 def wait_for_path():
+    """Waits for a path from go_to_goal"""
     try:
         bot = bots[my_id]
         if len(bot.path) > 0: return
@@ -1110,6 +1551,7 @@ def wait_for_path():
 
 
 def node_is_running(node_name):
+    """Checking if go_to_goal is running"""
     node_list = rosnode.get_node_names()
     is_running = False
     for node in node_list:
@@ -1119,29 +1561,26 @@ def node_is_running(node_name):
 
 if __name__ == '__main__': 
     try:
-        my_id = int(sys.argv[1])
-        bots = ThreadSafeDict()
-        ip = ThreadSafeDict()
+        my_id = int(sys.argv[1]) # getting the id of this bot
+        bots = ThreadSafeDict() # a dictionary of all detected bots
+        ip = ThreadSafeDict() # a dictionary of all ip addresses for other bots
         
         bots[my_id]=Bot(my_id)
-        ip[4] = '192.168.50.102'
-        ip[5] = '192.168.50.103'
+        ip[4] = '192.168.50.102' # ip address for Bot 4
+        ip[5] = '192.168.50.103' # ip address for Bot 5
         
-        data_file = csv_name()
-        file = init_log()
-        topic_handler = Ros_topic_handler()
-        udp_client = UDP_client()
-        udo_server = UDP_server(ip[my_id], 2020)
-        udo_server.start()
+        data_file = csv_name() # Creating name for csv file
+        file = init_log() # Initiating log file
+        topic_handler = Ros_topic_handler() # Creating ROS handler
+        udp_client = UDP_client() # Creating UDP client
+        udo_server = UDP_server(ip[my_id], 2020) # Creating UDP server
+        udo_server.start() # Starting UDP server
         log(file, "Status", "Starting udp-server")
 
-        wait_for_path()
+        wait_for_path() # Waits for a path from go_to_goal
 
         while not rospy.is_shutdown() and node_is_running('reachGoal'):
             run()
-
-    except Exception as exception:
-        log(file, "Status", f"Exception: {exception}")
         
     finally:
         udo_server.stop()
